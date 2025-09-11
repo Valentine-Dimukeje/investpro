@@ -65,6 +65,12 @@ CSRF_TRUSTED_ORIGINS = [
     "https://www.heritageinvestmentgrup.com",
 ]
 
+# Let Django know it’s behind a proxy that uses HTTPS
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
 
 ROOT_URLCONF = "investpro_backend.urls"
 
