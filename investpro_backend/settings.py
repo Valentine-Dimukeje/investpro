@@ -3,11 +3,17 @@ import os
 from pathlib import Path
 import environ
 
-# Build paths
+# ----------------------
+# Paths
+# ----------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Read environment
-env = environ.Env()
+# ----------------------
+# Environment variables
+# ----------------------
+env = environ.Env(
+    DEBUG=(bool, False)
+)
 
 # Determine which env file to load
 DJANGO_ENV = os.environ.get("DJANGO_ENV", "development")
@@ -18,15 +24,19 @@ if env_file.exists():
 else:
     print(f"⚠️ {env_file} not found, relying on system environment variables.")
 
-# SECURITY WARNING: keep the secret key used in production secret!
+# ----------------------
+# Security
+# ----------------------
+
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="fallback-secret-key")
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DJANGO_DEBUG", default=(DJANGO_ENV == "development"))
 
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["127.0.0.1", "localhost"])
 
-# Application definition
+# ----------------------
+# Applications
+# ----------------------
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -67,7 +77,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "investpro_backend.wsgi.application"
 
+# ----------------------
 # Database
+# ----------------------
 DATABASES = {
     "default": env.db(
         "DATABASE_URL",
@@ -75,7 +87,9 @@ DATABASES = {
     )
 }
 
+# ----------------------
 # Password validation
+# ----------------------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -83,16 +97,30 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# ----------------------
 # Internationalization
+# ----------------------
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
+# ----------------------
 # Static files
+# ----------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
 
-# Default primary key field type
+# ----------------------
+# Default primary key
+# ----------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ----------------------
+# Deployment tips
+# ----------------------
+# Ensure Railway environment variables:
+#   - DJANGO_SECRET_KEY
+#   - DJANGO_DEBUG=False
+#   - DJANGO_ALLOWED_HOSTS=web-production-eb3c87.up.railway.app
