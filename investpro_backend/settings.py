@@ -58,6 +58,14 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://web-production-eb3c87.up.railway.app",
+    "https://heritageinvestmentgrup.com",
+    "https://www.heritageinvestmentgrup.com",
+]
+
+
 ROOT_URLCONF = "investpro_backend.urls"
 
 TEMPLATES = [
