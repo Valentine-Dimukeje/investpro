@@ -2,6 +2,7 @@
 import os
 from pathlib import Path
 import environ
+from datetime import timedelta
 
 # ----------------------
 # Paths
@@ -15,7 +16,7 @@ env = environ.Env(
     DEBUG=(bool, False)
 )
 
-# Determine which env file to load
+
 DJANGO_ENV = os.environ.get("DJANGO_ENV", "development")
 env_file = BASE_DIR / f".env.{DJANGO_ENV}"
 
@@ -31,8 +32,10 @@ else:
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="fallback-secret-key")
 
 DEBUG = env.bool("DJANGO_DEBUG", default=(DJANGO_ENV == "development"))
-
-ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["127.0.0.1", "localhost"])
+ALLOWED_HOSTS = env.list(
+    "DJANGO_ALLOWED_HOSTS",
+    default=["127.0.0.1", "localhost", "heritageinvestmentgrup.com", "www.heritageinvestmentgrup.com"]
+)
 
 # ----------------------
 # Applications
@@ -45,10 +48,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "corsheaders",
     "core",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",  # Must be first
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -58,20 +64,42 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-
+# CSRF + CORS
 CSRF_TRUSTED_ORIGINS = [
     "https://web-production-eb3c87.up.railway.app",
     "https://heritageinvestmentgrup.com",
     "https://www.heritageinvestmentgrup.com",
 ]
+CORS_ALLOWED_ORIGINS = [
+    "https://heritageinvestmentgrup.com",
+    "https://www.heritageinvestmentgrup.com",
+]
+CORS_ALLOW_CREDENTIALS = True
 
-# Let Django know it’s behind a proxy that uses HTTPS
+# SSL settings (for Railway behind proxy)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 
+# ----------------------
+# Django REST Framework
+# ----------------------
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    )
+}
 
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# ----------------------
+# URLs and Templates
+# ----------------------
 ROOT_URLCONF = "investpro_backend.urls"
 
 TEMPLATES = [
@@ -131,11 +159,3 @@ STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else 
 # Default primary key
 # ----------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# ----------------------
-# Deployment tips
-# ----------------------
-# Ensure Railway environment variables:
-#   - DJANGO_SECRET_KEY
-#   - DJANGO_DEBUG=False
-#   - DJANGO_ALLOWED_HOSTS=web-production-eb3c87.up.railway.app
