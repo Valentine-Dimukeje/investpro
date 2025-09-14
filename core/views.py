@@ -4,6 +4,10 @@ from django.conf import settings
 from django.shortcuts import redirect
 from django.core.mail import send_mail, mail_admins
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login
+from rest_framework_simplejwt.tokens import RefreshToken
+
+
 
 from django.http import JsonResponse
 from django.core.mail import send_mail
@@ -65,7 +69,12 @@ def register_view(request):
     if serializer.is_valid():
         user = serializer.save()
 
-        # Send welcome email (Anymail will handle via Brevo API)
+        # Always keep username = email
+        if user.email and user.username != user.email:
+            user.username = user.email
+            user.save()
+
+        # Optional: Send welcome email
         try:
             send_mail(
                 subject="🎉 Welcome to Heritage Investment",
@@ -85,17 +94,68 @@ def register_view(request):
                 ),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[user.email],
-                fail_silently=True,  # Prevents signup from breaking if email fails
+                fail_silently=True,
             )
-
-        except Exception as e:
-            # you can log this if you want
+        except Exception:
             pass
 
-        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        # Return user data + JWT tokens
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "user": UserSerializer(user).data,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
-    # Return exact errors so frontend can show them
+    # Debugging output for serializer errors
+    print("REGISTER ERRORS:", serializer.errors)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def login_view(request):
+    email_or_username = request.data.get("username") or request.data.get("email")
+    password = request.data.get("password")
+
+    user = None
+
+    # Try direct authentication (works if username==email)
+    user = authenticate(request, username=email_or_username, password=password)
+
+    # If failed, fallback: check by email
+    if user is None:
+        try:
+            user_obj = User.objects.get(email=email_or_username)
+            user = authenticate(request, username=user_obj.username, password=password)
+        except User.DoesNotExist:
+            pass
+
+    if user is not None:
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "user": UserSerializer(user).data,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+# ----------------------
+# Current user
+# ----------------------
+@api_view(["GET"])
+def me_view(request):
+    user = request.user
+    if user.is_authenticated:
+        return Response(UserSerializer(user).data)
+    return Response({"detail": "Not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 def send_test_email(request):
@@ -502,3 +562,7 @@ def update_notifications(request):
 def me(request):
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
+
+
+def cors_test(request):
+    return JsonResponse({"ok": True})

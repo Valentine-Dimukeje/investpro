@@ -8,10 +8,14 @@ from .views import update_notifications
 
 
 urlpatterns = [
-    path("auth/register/", views.register_view, name="auth-register"),
-    path("auth/login/", views.MyTokenObtainPairView.as_view(), name="auth-login"),
+    path("auth/register/", views.register_view),
+    path("auth/login/", views.login_view),
+    path("auth/me/", views.me_view),
+    path("cors-test/", views.cors_test, name="cors_test"),
+    # path("auth/register/", views.register_view, name="auth-register"),
+    # path("auth/login/", views.MyTokenObtainPairView.as_view(), name="auth-login"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="auth-token-refresh"),
-    path("auth/me/", views.get_profile, name="auth-me"),
+    # path("auth/me/", views.get_profile, name="auth-me"),
     path("auth/me/update/", views.update_profile, name="auth-me-update"),
     path("auth/change-password/", views.change_password_view, name="auth-change-password"),
     path("auth/delete/", views.delete_account, name="auth-delete"),
@@ -27,5 +31,5 @@ urlpatterns = [
     path("investments/", views.investments_list, name="investments_list"),
     path("dashboard-summary/", views.dashboard_summary, name="dashboard_summary"),
     path("send-email/", views.send_test_email, name="send_email"),
-    path("auth/notifications/", views.update_notifications, name="update_notifications"),
+    path("auth/notifications/update", views.update_notifications, name="update_notifications"),
 ]

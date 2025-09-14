@@ -1,8 +1,8 @@
-# investpro_backend/settings.py
 import os
 from pathlib import Path
 import environ
 from datetime import timedelta
+from corsheaders.defaults import default_headers, default_methods
 
 # ----------------------
 # Paths
@@ -12,11 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ----------------------
 # Environment variables
 # ----------------------
-env = environ.Env(
-    DEBUG=(bool, False)
-)
-
-
+env = environ.Env(DEBUG=(bool, False))
 DJANGO_ENV = os.environ.get("DJANGO_ENV", "development")
 env_file = BASE_DIR / f".env.{DJANGO_ENV}"
 
@@ -28,20 +24,25 @@ else:
 # ----------------------
 # Security
 # ----------------------
-
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="fallback-secret-key")
-
 DEBUG = env.bool("DJANGO_DEBUG", default=(DJANGO_ENV == "development"))
+
 ALLOWED_HOSTS = env.list(
     "DJANGO_ALLOWED_HOSTS",
-    default=["127.0.0.1", "localhost", "heritageinvestmentgrup.com", "www.heritageinvestmentgrup.com"]
+    default=[
+        "127.0.0.1",
+        "localhost",
+        "heritageinvestmentgrup.com",
+        "www.heritageinvestmentgrup.com",
+        "api.heritageinvestmentgrup.com",
+    ],
 )
 
 # ----------------------
 # Applications
 # ----------------------
-
 INSTALLED_APPS = [
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -53,37 +54,55 @@ INSTALLED_APPS = [
     "core",
 ]
 
+# ----------------------
+# Middleware
+# ----------------------
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # Must be first
+    "corsheaders.middleware.CorsMiddleware",  # ⚡ keep first
     "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# CSRF + CORS
-CSRF_TRUSTED_ORIGINS = [
-    "https://web-production-eb3c87.up.railway.app",
-    "https://heritageinvestmentgrup.com",
-    "https://www.heritageinvestmentgrup.com",
-]
-CORS_ALLOWED_ORIGINS = [
-    "https://heritageinvestmentgrup.com",
-    "https://www.heritageinvestmentgrup.com",
-]
+# ----------------------
+# CORS / CSRF
+# ----------------------
+if DJANGO_ENV == "development":
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+    CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
+else:
+    CORS_ALLOWED_ORIGINS = [
+        "https://heritageinvestmentgrup.com",
+        "https://www.heritageinvestmentgrup.com",
+    ]
+    CSRF_TRUSTED_ORIGINS = [
+        "https://heritageinvestmentgrup.com",
+        "https://www.heritageinvestmentgrup.com",
+        "https://api.heritageinvestmentgrup.com",
+    ]
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+
 CORS_ALLOW_CREDENTIALS = True
-
-# SSL settings (for Railway behind proxy)
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
+CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
+CORS_ALLOW_METHODS = list(default_methods)
 
 # ----------------------
-# Django REST Framework
+# SSL / Proxy
+# ----------------------
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# ----------------------
+# Django REST Framework & JWT
 # ----------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -98,7 +117,7 @@ SIMPLE_JWT = {
 }
 
 # ----------------------
-# URLs and Templates
+# URLs / Templates
 # ----------------------
 ROOT_URLCONF = "investpro_backend.urls"
 

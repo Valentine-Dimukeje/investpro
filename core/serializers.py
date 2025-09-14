@@ -35,21 +35,9 @@ class DeviceSerializer(serializers.ModelSerializer):
         fields = ["id", "device_name", "ip_address", "last_active"]
 
 class UserSerializer(serializers.ModelSerializer):
-    notifications = serializers.SerializerMethodField()
-
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "notifications"]
-
-    def get_notifications(self, obj):
-        profile = getattr(obj, "profile", None)
-        if not profile:
-            return {}
-        return {
-            "email": profile.email_notifications,
-            "sms": profile.sms_notifications,
-            "system": profile.system_notifications,
-        }
+        fields = ["id", "username", "first_name", "last_name", "email"]
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
@@ -80,19 +68,14 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "system": profile.system_notifications,
         }
 
-
 class RegisterSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True, required=True, min_length=6)
     phone = serializers.CharField(required=False, allow_blank=True)
     country = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = User
-        fields = [ "email", "password", "first_name", "last_name", "phone", "country"]
-        extra_kwargs = {
-            "username": {"read_only": True, "required": False},  # hidden from user
-            "password": {"write_only": True},
-        }
+        fields = ["email", "first_name", "last_name", "password", "phone", "country"]
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -108,6 +91,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         user = User.objects.create_user(**validated_data)
 
+        # create/update Profile
         profile, _ = Profile.objects.get_or_create(user=user)
         if phone:
             profile.phone = phone
@@ -118,7 +102,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         profile.save()
 
         return user
-
 
 # -------- Transactions --------
 class TransactionSerializer(serializers.ModelSerializer):
