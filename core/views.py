@@ -62,10 +62,14 @@ def track_device(request, user):
         defaults={"last_active": timezone.now()}
     )
 
+User = get_user_model()
+logger = logging.getLogger(_name_)
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_view(request):
     serializer = RegisterSerializer(data=request.data)
+
     if serializer.is_valid():
         user = serializer.save()
 
@@ -74,7 +78,7 @@ def register_view(request):
             user.username = user.email
             user.save()
 
-        # Optional: Send welcome email
+        # Try sending welcome email (non-blocking)
         try:
             send_mail(
                 subject="🎉 Welcome to Heritage Investment",
@@ -96,10 +100,10 @@ def register_view(request):
                 recipient_list=[user.email],
                 fail_silently=True,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Email send failed: {str(e)}")
 
-        # Return user data + JWT tokens
+        # Issue JWT tokens
         refresh = RefreshToken.for_user(user)
         return Response(
             {
@@ -110,9 +114,12 @@ def register_view(request):
             status=status.HTTP_201_CREATED,
         )
 
-    # Debugging output for serializer errors
-    print("REGISTER ERRORS:", serializer.errors)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # Log and return detailed validation errors
+    logger.error(f"REGISTER ERRORS: {serializer.errors}")
+    return Response(
+        {"errors": serializer.errors},
+        status=status.HTTP_400_BAD_REQUEST
+    )
 
 
 @api_view(["POST"])
