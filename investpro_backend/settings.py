@@ -83,6 +83,7 @@ else:
     CORS_ALLOWED_ORIGINS = [
         "https://heritageinvestmentgrup.com",
         "https://www.heritageinvestmentgrup.com",
+        "https://api.heritageinvestmentgrup.com",
     ]
     CSRF_TRUSTED_ORIGINS = [
         "https://heritageinvestmentgrup.com",
