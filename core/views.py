@@ -24,6 +24,7 @@ from decimal import Decimal
 
 
 import user_agents
+import logging
 
 from .serializers import (
     RegisterSerializer,
@@ -34,6 +35,7 @@ from .serializers import (
 )
 from .models import Transaction, Profile, Device
 from django.contrib.auth import get_user_model
+
 
 
 
@@ -64,7 +66,7 @@ def track_device(request, user):
     )
 
 User = get_user_model()
-logger = logging.getLogger(_name_)
+logger = logging.getLogger(__name__)
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
