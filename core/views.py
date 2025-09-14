@@ -71,12 +71,15 @@ logger = logging.getLogger(__name__)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_view(request):
+    logger.info("Incoming registration request")
+    logger.debug(f"Raw request.data: {request.data}")
+
     serializer = RegisterSerializer(data=request.data)
 
     if serializer.is_valid():
         user = serializer.save()
 
-        # Always keep username = email
+        # Ensure username always matches email
         if user.email and user.username != user.email:
             user.username = user.email
             user.save()
@@ -120,10 +123,13 @@ def register_view(request):
     # Log and return detailed validation errors
     logger.error(f"REGISTER ERRORS: {serializer.errors}")
     return Response(
-        {"errors": serializer.errors},
+        {
+            "message": "Registration failed",
+            "errors": serializer.errors,
+            "received_data": request.data,  # 👈 Helps debug payload mismatch
+        },
         status=status.HTTP_400_BAD_REQUEST
     )
-
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
