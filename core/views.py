@@ -33,6 +33,7 @@ from .serializers import (
     UserDetailSerializer
 )
 from .models import Transaction, Profile, Device
+from django.contrib.auth import get_user_model
 
 
 
