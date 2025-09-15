@@ -69,13 +69,14 @@ class UserDetailSerializer(serializers.ModelSerializer):
         }
 
 class RegisterSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(required=False)  # 👈 include it
     password = serializers.CharField(write_only=True, required=True, min_length=6)
     phone = serializers.CharField(required=False, allow_blank=True)
     country = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = User
-        fields = ["email", "first_name", "last_name", "password", "phone", "country"]
+        fields = ["username", "email", "first_name", "last_name", "password", "phone", "country"]
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -86,12 +87,21 @@ class RegisterSerializer(serializers.ModelSerializer):
         phone = validated_data.pop("phone", "")
         country = validated_data.pop("country", "")
 
-        # force username = email
-        validated_data["username"] = validated_data["email"]
+        # always force username = email
+        email = validated_data["email"]
+        validated_data["username"] = email
 
-        user = User.objects.create_user(**validated_data)
+        password = validated_data.pop("password")
+        user = User(
+            username=email,
+            email=email,
+            first_name=validated_data.get("first_name", ""),
+            last_name=validated_data.get("last_name", "")
+        )
+        user.set_password(password)
+        user.save()
 
-        # create/update Profile
+        # create Profile
         profile, _ = Profile.objects.get_or_create(user=user)
         if phone:
             profile.phone = phone

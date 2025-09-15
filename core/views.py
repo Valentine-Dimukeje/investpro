@@ -68,28 +68,30 @@ def track_device(request, user):
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_view(request):
     logger.info("Incoming registration request")
-    logger.debug(f"Raw request.data: {request.data}")
+    logger.debug(f"Content-Type: {request.content_type}")
+    logger.debug(f"Raw body: {request.body}")
 
     serializer = RegisterSerializer(data=request.data)
 
     if serializer.is_valid():
         user = serializer.save()
 
-        # Ensure username always matches email
+        # Make sure username = email
         if user.email and user.username != user.email:
             user.username = user.email
             user.save()
 
-        # Try sending welcome email (non-blocking)
+        # send welcome email
         try:
             send_mail(
                 subject="🎉 Welcome to Heritage Investment",
                 message=(
-                    f"Dear {user.first_name or user.username},\n\n"
+                   f"Dear {user.first_name or user.username},\n\n"
                     "We’re delighted to welcome you to Heritage Investment!\n\n"
                     "Your account has been successfully created, and you’re now part of a community "
                     "committed to building a secure and prosperous financial future.\n\n"
@@ -109,7 +111,7 @@ def register_view(request):
         except Exception as e:
             logger.warning(f"Email send failed: {str(e)}")
 
-        # Issue JWT tokens
+        # issue JWT tokens
         refresh = RefreshToken.for_user(user)
         return Response(
             {
@@ -120,15 +122,15 @@ def register_view(request):
             status=status.HTTP_201_CREATED,
         )
 
-    # Log and return detailed validation errors
+    # return structured JSON error
     logger.error(f"REGISTER ERRORS: {serializer.errors}")
     return Response(
         {
             "message": "Registration failed",
             "errors": serializer.errors,
-            "received_data": request.data,  # 👈 Helps debug payload mismatch
+            "received_data": request.data,
         },
-        status=status.HTTP_400_BAD_REQUEST
+        status=status.HTTP_400_BAD_REQUEST,
     )
 
 @api_view(["POST"])
