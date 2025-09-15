@@ -20,6 +20,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.db.models import Sum
 from decimal import Decimal
+from django.views.decorators.csrf import csrf_exempt
 
 
 
@@ -582,24 +583,22 @@ def me_view(request):
     """Return the logged-in user's profile"""
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
-
-
-@api_view(["GET", "POST", "OPTIONS"])
+@csrf_exempt  # 👈 disable CSRF for this test endpoint
+@api_view(["GET", "OPTIONS"])
 @permission_classes([AllowAny])
 def cors_test(request):
-    """Simple endpoint to test CORS setup"""
     return Response({"ok": True})
 
 
+@csrf_exempt
 def cors_debug_view(request):
     """
     Simple endpoint to debug CORS/CSRF issues.
     Returns request meta and checks CORS headers.
     """
-    response = JsonResponse({
+    return JsonResponse({
         "method": request.method,
         "origin": request.META.get("HTTP_ORIGIN"),
         "host": request.get_host(),
         "headers": dict(request.headers),
     })
-    return response
