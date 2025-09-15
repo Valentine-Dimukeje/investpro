@@ -67,31 +67,48 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# ----------------------
 # CORS / CSRF
+# ----------------------
+from corsheaders.defaults import default_headers, default_methods
+
 if DJANGO_ENV == "development":
-    CORS_ALLOW_ALL_ORIGINS = True  # ✅ easiest for dev
+    # Local React dev
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
     CSRF_TRUSTED_ORIGINS = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
+    CORS_ALLOW_ALL_ORIGINS = True   # ✅ useful for dev
     CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_SECURE = False
+
 else:
+    # Production domains
     CORS_ALLOWED_ORIGINS = [
         "https://my-frontend-9qlg.onrender.com",
         "https://heritageinvestmentgrup.com",
         "https://www.heritageinvestmentgrup.com",
+        "https://api.heritageinvestmentgrup.com",
     ]
     CSRF_TRUSTED_ORIGINS = [
         "https://my-frontend-9qlg.onrender.com",
         "https://heritageinvestmentgrup.com",
         "https://www.heritageinvestmentgrup.com",
+        "https://api.heritageinvestmentgrup.com",
     ]
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
 
+# Common settings
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "authorization",
+    "content-type",
+]
 CORS_ALLOW_METHODS = list(default_methods)
 
 

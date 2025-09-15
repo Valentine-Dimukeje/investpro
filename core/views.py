@@ -589,3 +589,17 @@ def me_view(request):
 def cors_test(request):
     """Simple endpoint to test CORS setup"""
     return Response({"ok": True})
+
+
+def cors_debug_view(request):
+    """
+    Simple endpoint to debug CORS/CSRF issues.
+    Returns request meta and checks CORS headers.
+    """
+    response = JsonResponse({
+        "method": request.method,
+        "origin": request.META.get("HTTP_ORIGIN"),
+        "host": request.get_host(),
+        "headers": dict(request.headers),
+    })
+    return response
