@@ -20,7 +20,12 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.db.models import Sum
 from decimal import Decimal
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
 
 
 
@@ -583,6 +588,8 @@ def me_view(request):
     """Return the logged-in user's profile"""
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
+
+
 @csrf_exempt  # 👈 disable CSRF for this test endpoint
 @api_view(["GET", "OPTIONS"])
 @permission_classes([AllowAny])
