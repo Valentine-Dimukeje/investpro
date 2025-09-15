@@ -4,9 +4,6 @@ import environ
 from datetime import timedelta
 from corsheaders.defaults import default_headers, default_methods
 
-# ----------------------
-# Paths
-# ----------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ----------------------
@@ -58,7 +55,7 @@ INSTALLED_APPS = [
 # Middleware
 # ----------------------
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # ⚡ keep first
+    "corsheaders.middleware.CorsMiddleware",  # ⚡ must be first
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -76,22 +73,30 @@ if DJANGO_ENV == "development":
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
-    CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
     CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_SECURE = False
 else:
     CORS_ALLOWED_ORIGINS = [
+        "https://my-frontend-9qlg.onrender.com",
         "https://heritageinvestmentgrup.com",
         "https://www.heritageinvestmentgrup.com",
         "https://api.heritageinvestmentgrup.com",
     ]
     CSRF_TRUSTED_ORIGINS = [
+        "https://my-frontend-9qlg.onrender.com",
         "https://heritageinvestmentgrup.com",
         "https://www.heritageinvestmentgrup.com",
         "https://api.heritageinvestmentgrup.com",
     ]
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
+
+# ✅ allow all during debugging if CORS is still failing
+CORS_ALLOW_ALL_ORIGINS = DEBUG  
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
