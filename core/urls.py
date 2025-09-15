@@ -12,7 +12,7 @@ urlpatterns = [
     path("auth/login/", views.login_view),
     path("auth/me/", views.me_view),
     path("cors-test/", views.cors_test, name="cors_test"),
-    path("cors-debug/", views.cors_debug_view, name="cors_debug"),
+    path("raw-debug/", views.raw_debug_view, name="raw_debug"),
     # path("auth/register/", views.register_view, name="auth-register"),
     # path("auth/login/", views.MyTokenObtainPairView.as_view(), name="auth-login"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="auth-token-refresh"),

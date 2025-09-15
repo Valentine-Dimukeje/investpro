@@ -598,7 +598,7 @@ def cors_test(request):
 
 
 @csrf_exempt
-def cors_debug_view(request):
+def raw_debug_view(request):
     """
     Simple endpoint to debug CORS/CSRF issues.
     Returns request meta and checks CORS headers.
