@@ -68,11 +68,11 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "system": profile.system_notifications,
         }
 
-        
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, min_length=6)
     phone = serializers.CharField(required=False, allow_blank=True)
     country = serializers.CharField(required=False, allow_blank=True)
+    username = serializers.CharField(required=False, allow_blank=True)  # 👈 make optional
 
     class Meta:
         model = User
@@ -87,7 +87,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         phone = validated_data.pop("phone", "")
         country = validated_data.pop("country", "")
 
-        # If username not provided, force username = email
+        # Force username = email if missing
         email = validated_data["email"]
         if not validated_data.get("username"):
             validated_data["username"] = email
@@ -103,7 +103,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
 
-        # Profile
+        # Profile handling
         profile, _ = Profile.objects.get_or_create(user=user)
         if phone:
             profile.phone = phone
