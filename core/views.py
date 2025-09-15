@@ -81,17 +81,17 @@ def register_view(request):
     if serializer.is_valid():
         user = serializer.save()
 
-        # Make sure username = email
+        # Enforce username = email
         if user.email and user.username != user.email:
             user.username = user.email
             user.save()
 
-        # send welcome email
+        # Try sending welcome email
         try:
             send_mail(
                 subject="🎉 Welcome to Heritage Investment",
                 message=(
-                   f"Dear {user.first_name or user.username},\n\n"
+                    f"Dear {user.first_name or user.username},\n\n"
                     "We’re delighted to welcome you to Heritage Investment!\n\n"
                     "Your account has been successfully created, and you’re now part of a community "
                     "committed to building a secure and prosperous financial future.\n\n"
@@ -111,10 +111,11 @@ def register_view(request):
         except Exception as e:
             logger.warning(f"Email send failed: {str(e)}")
 
-        # issue JWT tokens
+        # ✅ Issue JWT tokens immediately after registration
         refresh = RefreshToken.for_user(user)
         return Response(
             {
+                "message": "Registration successful 🎉",
                 "user": UserSerializer(user).data,
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
@@ -122,7 +123,7 @@ def register_view(request):
             status=status.HTTP_201_CREATED,
         )
 
-    # return structured JSON error
+    # ❌ Invalid request: return structured JSON error
     logger.error(f"REGISTER ERRORS: {serializer.errors}")
     return Response(
         {
@@ -577,10 +578,14 @@ def update_notifications(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def me(request):
+def me_view(request):
+    """Return the logged-in user's profile"""
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
 
 
+@api_view(["GET", "POST", "OPTIONS"])
+@permission_classes([AllowAny])
 def cors_test(request):
-    return JsonResponse({"ok": True})
+    """Simple endpoint to test CORS setup"""
+    return Response({"ok": True})
