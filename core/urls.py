@@ -30,7 +30,7 @@ urlpatterns = [
     path("withdraw/", views.withdraw_view, name="withdraw"),
     path("invest/", views.invest_view, name="invest"),
     path("investments/", views.investments_list, name="investments_list"),
-    path("dashboard_summary/", views.dashboard_summary, name="dashboard_summary"),
+    path("dashboard-summary/", views.dashboard_summary, name="dashboard_summary"),
     path("send-email/", views.send_test_email, name="send_email"),
     path("auth/notifications/update", views.update_notifications, name="update_notifications"),
 ]
