@@ -79,24 +79,30 @@ def track_device(request, user):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_view(request):
-    logger.info("Incoming registration request")
-    logger.debug(f"Content-Type: {request.content_type}")
-    logger.debug(f"Raw body: {request.body}")
-
     serializer = RegisterSerializer(data=request.data)
 
     if serializer.is_valid():
-        ...
+        user = serializer.save()
+
+        # issue JWT tokens on signup
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "user": UserSerializer(user).data,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
+            status=status.HTTP_201_CREATED,
+        )
     else:
-        logger.error(f"REGISTER ERRORS: {serializer.errors}")
         return Response(
             {
                 "message": "Registration failed",
-                "errors": serializer.errors,   # 👈 send back details
-                "received_data": request.data,
+                "errors": serializer.errors,
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
+
 
 
 @api_view(["POST"])
