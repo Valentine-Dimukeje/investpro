@@ -119,9 +119,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 class TransactionSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
     amount = serializers.SerializerMethodField()
-    type = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()
-    method = serializers.SerializerMethodField()  # 👈 extract from meta
 
     class Meta:
         model = Transaction
@@ -131,28 +128,14 @@ class TransactionSerializer(serializers.ModelSerializer):
             "type",
             "amount",
             "status",
-            "method",       # 👈 new field for readability
             "meta",
             "created_at",
             "updated_at",
         )
 
     def get_amount(self, obj):
-        # Always return as string with 2 decimals
-        return f"{obj.amount:.2f}"
-
-    def get_type(self, obj):
-        return obj.type.capitalize() if obj.type else "-"
-
-    def get_status(self, obj):
-        return obj.status.capitalize() if obj.status else "-"
-
-    def get_method(self, obj):
-        """
-        Extract a human-readable method/plan/gateway from meta.
-        """
-        meta = obj.meta or {}
-        return meta.get("gateway") or meta.get("plan") or meta.get("method") or "-"
+        # Always return amount as string (e.g., "120.50")
+        return str(obj.amount)
 
     def create(self, validated_data):
         request = self.context.get("request")
@@ -161,10 +144,11 @@ class TransactionSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+# -------- Investments --------
 class InvestmentSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
-    earnings = serializers.SerializerMethodField()
     amount = serializers.SerializerMethodField()
+    earnings = serializers.SerializerMethodField()
 
     class Meta:
         model = Investment
@@ -180,8 +164,9 @@ class InvestmentSerializer(serializers.ModelSerializer):
         )
 
     def get_amount(self, obj):
-        return f"{obj.amount:.2f}"
+        return str(obj.amount)
 
     def get_earnings(self, obj):
-        return f"{obj.calculate_earnings():.2f}"
+        # Assuming calculate_earnings() returns a Decimal
+        return str(obj.calculate_earnings())
 
