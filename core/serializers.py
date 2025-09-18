@@ -118,6 +118,10 @@ class RegisterSerializer(serializers.ModelSerializer):
 # -------- Transactions --------
 class TransactionSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
+    amount = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    method = serializers.SerializerMethodField()  # 👈 extract from meta
 
     class Meta:
         model = Transaction
@@ -127,10 +131,28 @@ class TransactionSerializer(serializers.ModelSerializer):
             "type",
             "amount",
             "status",
+            "method",       # 👈 new field for readability
             "meta",
             "created_at",
             "updated_at",
         )
+
+    def get_amount(self, obj):
+        # Always return as string with 2 decimals
+        return f"{obj.amount:.2f}"
+
+    def get_type(self, obj):
+        return obj.type.capitalize() if obj.type else "-"
+
+    def get_status(self, obj):
+        return obj.status.capitalize() if obj.status else "-"
+
+    def get_method(self, obj):
+        """
+        Extract a human-readable method/plan/gateway from meta.
+        """
+        meta = obj.meta or {}
+        return meta.get("gateway") or meta.get("plan") or meta.get("method") or "-"
 
     def create(self, validated_data):
         request = self.context.get("request")
@@ -142,10 +164,24 @@ class TransactionSerializer(serializers.ModelSerializer):
 class InvestmentSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
     earnings = serializers.SerializerMethodField()
+    amount = serializers.SerializerMethodField()
 
     class Meta:
         model = Investment
-        fields = ("id", "user", "plan", "amount", "earnings", "status", "created_at", "updated_at")
+        fields = (
+            "id",
+            "user",
+            "plan",
+            "amount",
+            "earnings",
+            "status",
+            "created_at",
+            "updated_at",
+        )
+
+    def get_amount(self, obj):
+        return f"{obj.amount:.2f}"
 
     def get_earnings(self, obj):
-        return str(obj.calculate_earnings())
+        return f"{obj.calculate_earnings():.2f}"
+

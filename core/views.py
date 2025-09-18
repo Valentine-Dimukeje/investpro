@@ -509,12 +509,25 @@ def dashboard_summary(request):
     user = request.user
     tx = Transaction.objects.filter(user=user)
 
-    deposits = tx.filter(type="deposit", status="completed").aggregate(total=Sum("amount"))["total"] or Decimal("0")
-    withdrawals = tx.filter(type="withdraw", status="completed").aggregate(total=Sum("amount"))["total"] or Decimal("0")
-    investments = tx.filter(type="investment", status="active").aggregate(total=Sum("amount"))["total"] or Decimal("0")
-    earnings = tx.filter(type="profit").aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    deposits = tx.filter(type="deposit", status="completed").aggregate(
+        total=Sum("amount")
+    )["total"] or Decimal("0.00")
 
-    recent = TransactionSerializer(tx.order_by("-created_at")[:10], many=True).data
+    withdrawals = tx.filter(type="withdraw", status="completed").aggregate(
+        total=Sum("amount")
+    )["total"] or Decimal("0.00")
+
+    investments = tx.filter(type="investment", status="active").aggregate(
+        total=Sum("amount")
+    )["total"] or Decimal("0.00")
+
+    earnings = tx.filter(type="profit", status="completed").aggregate(
+        total=Sum("amount")
+    )["total"] or Decimal("0.00")
+
+    recent = TransactionSerializer(
+        tx.order_by("-created_at")[:10], many=True
+    ).data
 
     return Response({
         "wallet": str(user.profile.main_wallet),
@@ -523,7 +536,7 @@ def dashboard_summary(request):
         "total_withdrawals": str(withdrawals),
         "total_investments": str(investments),
         "total_earnings": str(earnings),
-        "recent": recent
+        "recent": recent,
     })
 
 @api_view(["POST"])
