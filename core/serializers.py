@@ -3,6 +3,8 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Profile, Transaction, Device, Investment
 from .utils import lookup_country_code, country_to_flag
+from decimal import Decimal, InvalidOperation
+
 
 class ProfileSerializer(serializers.ModelSerializer):
     country = serializers.SerializerMethodField()
@@ -115,33 +117,20 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         return user
 
-# -------- Transactions --------
+
+
 class TransactionSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField(read_only=True)
     amount = serializers.SerializerMethodField()
 
     class Meta:
         model = Transaction
-        fields = (
-            "id",
-            "user",
-            "type",
-            "amount",
-            "status",
-            "meta",
-            "created_at",
-            "updated_at",
-        )
+        fields = ["id", "type", "amount", "status", "meta", "created_at"]
 
     def get_amount(self, obj):
-        # Always return amount as string (e.g., "120.50")
-        return str(obj.amount)
-
-    def create(self, validated_data):
-        request = self.context.get("request")
-        if request and request.user and not request.user.is_anonymous:
-            validated_data["user"] = request.user
-        return super().create(validated_data)
+        try:
+            return format(Decimal(obj.amount), ".2f")
+        except (ValueError, TypeError, InvalidOperation):
+            return "0.00"
 
 
 # -------- Investments --------

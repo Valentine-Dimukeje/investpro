@@ -6,13 +6,23 @@ from django.core.mail import send_mail, mail_admins
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from rest_framework.views import APIView
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.crypto import get_random_string
+reset_tokens ={}
+
+from rest_framework import status
+
+token_generator = PasswordResetTokenGenerator()
 
 
 
 from django.http import JsonResponse
 from django.core.mail import send_mail
 
-from rest_framework import status
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
@@ -307,7 +317,7 @@ def transactions_view(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, IsAdminUser])
+@permission_classes([IsAdminUser])
 def admin_transaction_action(request, pk):
     try:
         txn = Transaction.objects.get(pk=pk)
@@ -315,28 +325,41 @@ def admin_transaction_action(request, pk):
         return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
     action = request.data.get("action")
+    if action not in ("approve", "reject"):
+        return Response({"detail": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if txn.status != "pending":
+        return Response({"detail": "Transaction already processed"}, status=status.HTTP_400_BAD_REQUEST)
+
+    profile = getattr(txn.user, "profile", None)
+    if not profile:
+        return Response({"detail": "User profile missing"}, status=status.HTTP_400_BAD_REQUEST)
+
     if action == "approve":
+        # process according to type
+        if txn.type == "deposit":
+            profile.main_wallet = (profile.main_wallet or Decimal("0.00")) + txn.amount
+        elif txn.type == "withdraw":
+            # only allow if funds sufficient (should be checked before admin approves)
+            profile.main_wallet = (profile.main_wallet or Decimal("0.00")) - txn.amount
+            if profile.main_wallet < Decimal("0.00"):
+                profile.main_wallet = Decimal("0.00")
+        elif txn.type == "investment":
+            # when investment is approved you typically DEBIT main wallet and mark investment active
+            profile.main_wallet = (profile.main_wallet or Decimal("0.00")) - txn.amount
+        elif txn.type == "profit":
+            profile.profit_wallet = (profile.profit_wallet or Decimal("0.00")) + txn.amount
+
+        profile.save()
         txn.status = "completed"
         txn.save()
-        profile = getattr(txn.user, "profile", None)
-        if profile:
-            if txn.type == "deposit":
-                profile.main_wallet += Decimal(txn.amount)
-            elif txn.type == "withdraw":
-                profile.main_wallet -= Decimal(txn.amount)
-                if profile.main_wallet < 0:
-                    profile.main_wallet = Decimal("0.00")
-            elif txn.type == "profit":
-                profile.profit_wallet += Decimal(txn.amount)
-            profile.save()
+
         return Response(TransactionSerializer(txn).data)
 
-    if action == "reject":
-        txn.status = "rejected"
-        txn.save()
-        return Response(TransactionSerializer(txn).data)
-
-    return Response({"detail": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+    # reject
+    txn.status = "rejected"
+    txn.save()
+    return Response(TransactionSerializer(txn).data)
 
 
 @api_view(["POST"])
@@ -352,18 +375,23 @@ def deposit(request):
     if not amount or not method or not tx_id:
         return Response({"error": "Missing required fields"}, status=400)
 
+    try:
+        amount = Decimal(str(amount))  # ✅ force to Decimal
+    except Exception:
+        return Response({"error": "Invalid amount format"}, status=400)
+
     txn = Transaction.objects.create(
         user=user,
         type="deposit",
         amount=amount,
         status="pending",
-        meta={"method": method, "tx_id": tx_id}  # ✅ save in JSON
+        meta={"method": method, "tx_id": tx_id},
     )
 
     return Response({
         "message": "Deposit submitted! Waiting for admin approval.",
         "transaction": TransactionSerializer(txn).data,
-        "new_balance": str(user.profile.main_wallet)  # balance unchanged until approved
+        "new_balance": str(user.profile.main_wallet),  # balance unchanged until approved
     }, status=201)
 
 
@@ -505,47 +533,42 @@ def withdraw_view(request):
 
 
 
-# ----------- DASHBOARD SUMMARY -----------
+def _fmt(v):
+    if v is None:
+        return "0.00"
+    if isinstance(v, Decimal):
+        return format(v, ".2f")
+    try:
+        return format(Decimal(v), ".2f")
+    except Exception:
+        return str(v)
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
     user = request.user
     tx = Transaction.objects.filter(user=user)
 
-    # Totals based only on APPROVED/COMPLETED transactions
-    deposits = (
-        tx.filter(type="deposit", status="completed")
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
-    withdrawals = (
-        tx.filter(type="withdraw", status="completed")
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
-    investments = (
-        tx.filter(type="investment", status__in=["active", "completed"])
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
-    earnings = (
-        tx.filter(type="profit", status="completed")
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
+    deposits = tx.filter(type="deposit", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    withdrawals = tx.filter(type="withdraw", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    investments = tx.filter(type="investment", status__in=["active", "completed"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    earnings = tx.filter(type="profit", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
     recent = TransactionSerializer(tx.order_by("-created_at")[:10], many=True).data
 
+    # ensure profile values are included and formatted
+    main_wallet = getattr(user.profile, "main_wallet", Decimal("0.00"))
+    profit_wallet = getattr(user.profile, "profit_wallet", Decimal("0.00"))
+
     return Response({
-        "wallet": str(user.profile.main_wallet),        # always trust the wallet field
-        "profit_wallet": str(user.profile.profit_wallet),
-        "total_deposits": str(deposits),
-        "total_withdrawals": str(withdrawals),
-        "total_investments": str(investments),
-        "total_earnings": str(earnings),
+        "wallet": _fmt(main_wallet),
+        "profit_wallet": _fmt(profit_wallet),
+        "total_deposits": _fmt(deposits),
+        "total_withdrawals": _fmt(withdrawals),
+        "total_investments": _fmt(investments),
+        "total_earnings": _fmt(earnings),
         "recent": recent,
     })
-
 
 
 @api_view(["POST"])
@@ -596,3 +619,63 @@ def raw_debug_view(request):
         "host": request.get_host(),
         "headers": dict(request.headers),
     })
+
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+
+token_generator = PasswordResetTokenGenerator()
+
+
+class PasswordResetRequestView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Generate uid + token
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = token_generator.make_token(user)
+
+        reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
+
+        subject = "Password Reset Request - Heritage Investment"
+        message = f"Click the link below to reset your password:\n{reset_link}"
+        from_email = settings.DEFAULT_FROM_EMAIL
+        recipient_list = [email]
+
+        try:
+            send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+        except Exception as e:
+            return Response({"error": f"Email sending failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"message": "Password reset link sent to your email."}, status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(APIView):
+    def post(self, request):
+        uidb64 = request.data.get("uid")
+        token = request.data.get("token")
+        password = request.data.get("password")
+
+        if not uidb64 or not token or not password:
+            return Response({"error": "UID, token, and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (User.DoesNotExist, ValueError, TypeError):
+            return Response({"error": "Invalid UID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not token_generator.check_token(user, token):
+            return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(password)
+        user.save()
+
+        return Response({"message": "Password reset successful"}, status=status.HTTP_200_OK)
