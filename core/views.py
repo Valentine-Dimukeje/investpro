@@ -367,9 +367,9 @@ def deposit(request):
     }, status=201)
 
 
-# ✅ Admin approves deposit
+# ----------- APPROVE DEPOSIT (ADMIN ONLY) -----------
 @api_view(["POST"])
-@permission_classes([IsAdminUser])  # only staff/admin can approve
+@permission_classes([IsAdminUser])
 def approve_deposit(request, txn_id):
     try:
         txn = Transaction.objects.get(id=txn_id, type="deposit")
@@ -380,15 +380,16 @@ def approve_deposit(request, txn_id):
         return Response({"error": "Transaction already processed"}, status=400)
 
     profile = txn.user.profile
+
+    # Credit deposit to main wallet
     profile.main_wallet += txn.amount
-    profile.wallet_balance += txn.amount
     profile.save()
 
     txn.status = "completed"
     txn.save()
 
     return Response({
-        "message": "Deposit approved and credited.",
+        "message": "✅ Deposit approved and credited.",
         "transaction": TransactionSerializer(txn).data,
         "new_balance": str(profile.main_wallet),
     })
@@ -504,35 +505,39 @@ def withdraw_view(request):
 
 
 
+# ----------- DASHBOARD SUMMARY -----------
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
     user = request.user
     tx = Transaction.objects.filter(user=user)
 
-    # Adjust status filters to match how transactions are saved
-    deposits = tx.filter(type="deposit", status__in=["completed", "approved"]).aggregate(
-        total=Sum("amount")
-    )["total"] or Decimal("0.00")
+    # Totals based only on APPROVED/COMPLETED transactions
+    deposits = (
+        tx.filter(type="deposit", status="completed")
+        .aggregate(total=Sum("amount"))["total"]
+        or Decimal("0.00")
+    )
+    withdrawals = (
+        tx.filter(type="withdraw", status="completed")
+        .aggregate(total=Sum("amount"))["total"]
+        or Decimal("0.00")
+    )
+    investments = (
+        tx.filter(type="investment", status__in=["active", "completed"])
+        .aggregate(total=Sum("amount"))["total"]
+        or Decimal("0.00")
+    )
+    earnings = (
+        tx.filter(type="profit", status="completed")
+        .aggregate(total=Sum("amount"))["total"]
+        or Decimal("0.00")
+    )
 
-    withdrawals = tx.filter(type="withdraw", status__in=["completed", "approved"]).aggregate(
-        total=Sum("amount")
-    )["total"] or Decimal("0.00")
-
-    investments = tx.filter(type="investment", status__in=["active", "completed"]).aggregate(
-        total=Sum("amount")
-    )["total"] or Decimal("0.00")
-
-    earnings = tx.filter(type="profit", status__in=["completed", "approved"]).aggregate(
-        total=Sum("amount")
-    )["total"] or Decimal("0.00")
-
-    recent = TransactionSerializer(
-        tx.order_by("-created_at")[:10], many=True
-    ).data
+    recent = TransactionSerializer(tx.order_by("-created_at")[:10], many=True).data
 
     return Response({
-        "wallet": str(user.profile.main_wallet),
+        "wallet": str(user.profile.main_wallet),        # always trust the wallet field
         "profit_wallet": str(user.profile.profit_wallet),
         "total_deposits": str(deposits),
         "total_withdrawals": str(withdrawals),
@@ -540,6 +545,8 @@ def dashboard_summary(request):
         "total_earnings": str(earnings),
         "recent": recent,
     })
+
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
