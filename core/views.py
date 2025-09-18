@@ -503,25 +503,27 @@ def withdraw_view(request):
     }, status=status.HTTP_201_CREATED)
 
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
     user = request.user
     tx = Transaction.objects.filter(user=user)
 
-    deposits = tx.filter(type="deposit", status="completed").aggregate(
+    # Adjust status filters to match how transactions are saved
+    deposits = tx.filter(type="deposit", status__in=["completed", "approved"]).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0.00")
 
-    withdrawals = tx.filter(type="withdraw", status="completed").aggregate(
+    withdrawals = tx.filter(type="withdraw", status__in=["completed", "approved"]).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0.00")
 
-    investments = tx.filter(type="investment", status="active").aggregate(
+    investments = tx.filter(type="investment", status__in=["active", "completed"]).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0.00")
 
-    earnings = tx.filter(type="profit", status="completed").aggregate(
+    earnings = tx.filter(type="profit", status__in=["completed", "approved"]).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0.00")
 
