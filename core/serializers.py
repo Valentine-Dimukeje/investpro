@@ -71,40 +71,34 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "sms": profile.sms_notifications,
             "system": profile.system_notifications,
         }
-
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, min_length=6)
     phone = serializers.CharField(required=False, allow_blank=True)
     country = serializers.CharField(required=False, allow_blank=True)
-    username = serializers.CharField(required=False, allow_blank=True)  # 👈 make optional
 
     class Meta:
         model = User
-        fields = ["username", "email", "first_name", "last_name", "password", "phone", "country"]
+        fields = ["email", "first_name", "last_name", "password", "phone", "country"]
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
+            raise serializers.ValidationError("This email is already registered.")
         return value
 
     def create(self, validated_data):
         phone = validated_data.pop("phone", "")
         country = validated_data.pop("country", "")
 
-        # Force username = email if missing
         email = validated_data["email"]
-        if not validated_data.get("username"):
-            validated_data["username"] = email
 
-        password = validated_data.pop("password")
-
+        # Always force username = email
         user = User(
-            username=validated_data["username"],
+            username=email,
             email=email,
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", "")
         )
-        user.set_password(password)
+        user.set_password(validated_data["password"])
         user.save()
 
         # Profile handling
@@ -112,12 +106,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         if phone:
             profile.phone = phone
         if country:
-            code = lookup_country_code(country)
-            profile.country = code
-            profile.flag = country_to_flag(code)
+            try:
+                code = lookup_country_code(country)
+                profile.country = code
+                profile.flag = country_to_flag(code)
+            except Exception:
+                profile.country = country  # fallback if lookup fails
         profile.save()
 
         return user
+
 
 
 

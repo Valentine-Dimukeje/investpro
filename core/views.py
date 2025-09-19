@@ -51,6 +51,8 @@ from .serializers import (
 )
 from .models import Transaction, Profile, Device
 from django.contrib.auth import get_user_model
+from django.utils.html import strip_tags
+
 
 
 
