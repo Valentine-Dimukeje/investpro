@@ -7,14 +7,16 @@ from decimal import Decimal, InvalidOperation
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    walletBalance = serializers.DecimalField(source="main_wallet", max_digits=12, decimal_places=2)
+    profitBalance = serializers.DecimalField(source="profit_wallet", max_digits=12, decimal_places=2)
     country = serializers.SerializerMethodField()
     flag = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
         fields = [
-            "main_wallet",
-            "profit_wallet",
+            "walletBalance",
+            "profitBalance",
             "email_notifications",
             "sms_notifications",
             "system_notifications",
