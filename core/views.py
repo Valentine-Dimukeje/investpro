@@ -98,6 +98,8 @@ def send_html_email(subject, html_content, to_email):
     email.send(fail_silently=True)
 
 
+from django.utils.html import strip_tags
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_view(request):
@@ -115,31 +117,9 @@ def register_view(request):
             user.save()
 
             # ✅ Styled Welcome Back Email
-            html_content = f"""
-            <div style="font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px;">
-              <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                <div style="background: #0b3d91; color: white; padding: 20px; text-align: center;">
-                  <h2>🎉 Welcome Back to Heritage Investment!</h2>
-                </div>
-                <div style="padding: 20px; color: #333;">
-                  <p>Hi {user.first_name or "Investor"},</p>
-                  <p>We’re excited to see you back at <b>Heritage Investment</b>! 🙌 Your account has been successfully reactivated, and you can now continue your investment journey right where you left off.</p>
-                  <ul>
-                    <li>📊 Access to your past investments and portfolio insights</li>
-                    <li>📈 New opportunities and market updates tailored to your goals</li>
-                    <li>🔒 The same secure and trusted platform you know</li>
-                  </ul>
-                  <p style="text-align: center; margin: 30px 0;">
-                    <a href="https://heritageinvestmentgrup.com/login" style="background: #0b3d91; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Log In to Your Account</a>
-                  </p>
-                  <p>Welcome back — let’s keep building your future together!</p>
-                  <p>Warm regards,<br><b>The Heritage Investment Team</b></p>
-                </div>
-              </div>
-            </div>
-            """
-
-            send_html_email("🎉 Welcome Back to Heritage Investment!", html_content, email)
+            html_content = f""" ... your HTML ... """
+            text_content = strip_tags(html_content)  # 👈 fallback text
+            send_html_email("🎉 Welcome Back to Heritage Investment!", html_content, email, text_content)
 
             refresh = RefreshToken.for_user(user)
             return Response(
@@ -153,7 +133,7 @@ def register_view(request):
             )
         else:
             return Response(
-                {"error": "Email already registered"},
+                {"error": "This email is already registered. Please log in."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -164,50 +144,30 @@ def register_view(request):
             user = serializer.save()
 
             # ✅ Styled Welcome Email
-            html_content = f"""
-            <div style="font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px;">
-              <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                <div style="background: #0b3d91; color: white; padding: 20px; text-align: center;">
-                  <h2>🎉 Welcome to Heritage Investment!</h2>
-                </div>
-                <div style="padding: 20px; color: #333;">
-                  <p>Hi {user.first_name or "Investor"},</p>
-                  <p>Thank you for registering with <b>Heritage Investment</b>. We’re excited to have you on board!</p>
-                  <ul>
-                    <li>📊 Powerful investment tools and resources</li>
-                    <li>📈 Expert insights and market trends</li>
-                    <li>🔒 A secure platform to manage and grow your wealth</li>
-                  </ul>
-                  <p style="text-align: center; margin: 30px 0;">
-                    <a href="https://heritageinvestmentgrup.com/login" style="background: #0b3d91; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Get Started Now</a>
-                  </p>
-                  <p>Your success is our priority. If you ever need assistance, our support team is just an email or chat away.</p>
-                  <p>We’re excited to see where your investment journey takes you!</p>
-                  <p>Warm regards,<br><b>The Heritage Investment Team</b></p>
-                </div>
-              </div>
-            </div>
-            """
-
-            send_html_email("🎉 Welcome to Heritage Investment!", html_content, email)
+            html_content = f""" ... your HTML ... """
+            text_content = strip_tags(html_content)  # 👈 fallback text
+            send_html_email("🎉 Welcome to Heritage Investment!", html_content, email, text_content)
 
             refresh = RefreshToken.for_user(user)
             return Response(
                 {
+                    "message": "Account created successfully",
                     "user": UserSerializer(user).data,
                     "access": str(refresh.access_token),
                     "refresh": str(refresh),
                 },
                 status=status.HTTP_201_CREATED,
             )
-        else:
-            return Response(
-                {
-                    "message": "Registration failed",
-                    "errors": serializer.errors,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+
+        # 🔹 Return serializer validation errors clearly
+        return Response(
+            {
+                "message": "Registration failed",
+                "errors": serializer.errors,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
 
 
 @api_view(["POST"])
