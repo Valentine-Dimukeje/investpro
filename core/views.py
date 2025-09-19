@@ -98,8 +98,6 @@ def send_html_email(subject, html_content, to_email):
     email.send(fail_silently=True)
 
 
-from django.utils.html import strip_tags
-
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_view(request):
@@ -118,8 +116,11 @@ def register_view(request):
 
             # ✅ Styled Welcome Back Email
             html_content = f""" ... your HTML ... """
-            text_content = strip_tags(html_content)  # 👈 fallback text
-            send_html_email("🎉 Welcome Back to Heritage Investment!", html_content, email, text_content)
+            text_content = strip_tags(html_content)
+            try:
+                send_html_email("🎉 Welcome Back to Heritage Investment!", html_content, email, text_content)
+            except Exception:
+                pass  # don't block registration if email fails
 
             refresh = RefreshToken.for_user(user)
             return Response(
@@ -131,11 +132,11 @@ def register_view(request):
                 },
                 status=status.HTTP_200_OK,
             )
-        else:
-            return Response(
-                {"error": "This email is already registered. Please log in."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+
+        return Response(
+            {"error": "This email is already registered. Please log in."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     except User.DoesNotExist:
         # ✅ Fresh registration
@@ -145,8 +146,11 @@ def register_view(request):
 
             # ✅ Styled Welcome Email
             html_content = f""" ... your HTML ... """
-            text_content = strip_tags(html_content)  # 👈 fallback text
-            send_html_email("🎉 Welcome to Heritage Investment!", html_content, email, text_content)
+            text_content = strip_tags(html_content)
+            try:
+                send_html_email("🎉 Welcome to Heritage Investment!", html_content, email, text_content)
+            except Exception:
+                pass  # don't block registration if email fails
 
             refresh = RefreshToken.for_user(user)
             return Response(
@@ -159,7 +163,6 @@ def register_view(request):
                 status=status.HTTP_201_CREATED,
             )
 
-        # 🔹 Return serializer validation errors clearly
         return Response(
             {
                 "message": "Registration failed",

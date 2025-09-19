@@ -80,11 +80,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ["email", "first_name", "last_name", "password", "phone", "country"]
 
-    def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("This email is already registered.")
-        return value
-
     def create(self, validated_data):
         phone = validated_data.pop("phone", "")
         country = validated_data.pop("country", "")
