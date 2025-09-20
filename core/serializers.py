@@ -5,6 +5,39 @@ from .models import Profile, Transaction, Device, Investment
 from .utils import lookup_country_code, country_to_flag
 from decimal import Decimal, InvalidOperation
 
+class UserProfileSerializer(serializers.ModelSerializer):
+    main_wallet = serializers.DecimalField(source="profile.main_wallet", max_digits=12, decimal_places=2)
+    profit_wallet = serializers.DecimalField(source="profile.profit_wallet", max_digits=12, decimal_places=2)
+    wallet_balance = serializers.DecimalField(source="profile.wallet_balance", max_digits=12, decimal_places=2)
+    phone = serializers.CharField(source="profile.phone", allow_null=True, required=False)
+    country = serializers.SerializerMethodField()
+    flag = serializers.CharField(source="profile.flag", allow_null=True)
+    notifications = serializers.SerializerMethodField()
+    devices = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "username", "email", "first_name", "last_name",
+            "main_wallet", "profit_wallet", "wallet_balance",
+            "phone", "country", "flag", "notifications", "devices"
+        ]
+
+    def get_country(self, obj):
+        return str(obj.profile.country) if obj.profile.country else None
+
+    def get_notifications(self, obj):
+        p = obj.profile
+        return {
+            "email": bool(p.email_notifications),
+            "sms": bool(p.sms_notifications),
+            "system": bool(p.system_notifications),
+        }
+
+    def get_devices(self, obj):
+        # If you’re not tracking devices yet, return []
+        return []
+
 
 class ProfileSerializer(serializers.ModelSerializer):
     walletBalance = serializers.DecimalField(source="main_wallet", max_digits=12, decimal_places=2)

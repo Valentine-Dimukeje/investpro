@@ -1,11 +1,12 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.signals import user_logged_in
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 from .models import Profile
 from django.core.mail import send_mail
+from django.utils.html import strip_tags
 import requests
 from decimal import Decimal
 from .models import Transaction, Profile  # adjust import if Profile is elsewhere
@@ -73,25 +74,49 @@ def get_client_ip(request):
     return request.META.get('REMOTE_ADDR')
 
 
+# store previous status before save
+@receiver(pre_save, sender=Transaction)
+def transaction_pre_save(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            prev = Transaction.objects.get(pk=instance.pk)
+            instance._previous_status = prev.status
+        except Transaction.DoesNotExist:
+            instance._previous_status = None
+    else:
+        instance._previous_status = None
+
 @receiver(post_save, sender=Transaction)
 def handle_deposit_approval(sender, instance, created, **kwargs):
     """
-    Credit user's main_wallet when a deposit is marked completed in Admin.
+    Credit user's main_wallet when a deposit's status transitions to 'completed'.
+    This prevents double-crediting when admin view also modifies profile.
+    It only acts when previous status != 'completed' and current status == 'completed'.
     """
-    if instance.type == "deposit" and instance.status == "completed":
+    # only care about deposits
+    if instance.type != "deposit":
+        return
+
+    prev_status = getattr(instance, "_previous_status", None)
+    curr_status = instance.status
+
+    # credit only on transition -> completed (and not already completed)
+    if curr_status == "completed" and prev_status != "completed":
         try:
             profile = Profile.objects.get(user=instance.user)
         except Profile.DoesNotExist:
-            return  # failsafe: no profile
+            return
 
-        # Prevent double crediting
-        if not getattr(instance, "_credited", False):
-            profile.main_wallet = (profile.main_wallet or Decimal("0")) + instance.amount
-            profile.save()
+        # Protect against None
+        profile.main_wallet = (profile.main_wallet or Decimal("0.00")) + (instance.amount or Decimal("0.00"))
+        profile.save()
 
-            # runtime flag (not persisted) to avoid infinite loop
-            instance._credited = True
-
+        # mark that this transaction was credited in meta to be extra-safe for future
+        meta = instance.meta or {}
+        meta["credited"] = True
+        instance.meta = meta
+        # avoid re-triggering loop: save only meta field update without invoking signal action again
+        Transaction.objects.filter(pk=instance.pk).update(meta=instance.meta)
 
 
 @receiver(post_save, sender=Transaction)

@@ -250,21 +250,8 @@ class MyTokenObtainPairView(TokenObtainPairView):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_profile(request):
-    user = request.user
-    data = UserDetailSerializer(user).data
-    prof = getattr(user, "profile", None)
-
-    if prof:  # 👈 make sure profile exists
-        data["wallet_balance"] = str(prof.wallet_balance)  # 👈 add balance here
-
-        data["notifications"] = {
-            "email": bool(getattr(prof, "email_notifications", True)),
-            "sms": bool(getattr(prof, "sms_notifications", False)),
-            "system": bool(getattr(prof, "system_notifications", True)),
-        }
-
-    return Response(data)
-
+    serializer = UserProfileSerializer(request.user)
+    return Response(serializer.data)
 
 
 @api_view(["POST"])
@@ -397,28 +384,23 @@ def admin_transaction_action(request, pk):
     if txn.status != "pending":
         return Response({"detail": "Transaction already processed"}, status=status.HTTP_400_BAD_REQUEST)
 
-    profile = getattr(txn.user, "profile", None)
-    if not profile:
-        return Response({"detail": "User profile missing"}, status=status.HTTP_400_BAD_REQUEST)
-
     if action == "approve":
-        # process according to type
         if txn.type == "deposit":
-            profile.main_wallet = (profile.main_wallet or Decimal("0.00")) + txn.amount
+            # don't directly update profile here - signal will handle crediting on status change
+            txn.status = "completed"
+            txn.save()
         elif txn.type == "withdraw":
-            # only allow if funds sufficient (should be checked before admin approves)
-            profile.main_wallet = (profile.main_wallet or Decimal("0.00")) - txn.amount
-            if profile.main_wallet < Decimal("0.00"):
-                profile.main_wallet = Decimal("0.00")
+            # For withdraw, you might want to check funds and then mark completed; signal can also handle deduction
+            # For now, ensure you change status and let signals handle profile update consistent with deposits
+            txn.status = "completed"
+            txn.save()
         elif txn.type == "investment":
-            # when investment is approved you typically DEBIT main wallet and mark investment active
-            profile.main_wallet = (profile.main_wallet or Decimal("0.00")) - txn.amount
+            # mark investment active/completed as appropriate
+            txn.status = "completed"
+            txn.save()
         elif txn.type == "profit":
-            profile.profit_wallet = (profile.profit_wallet or Decimal("0.00")) + txn.amount
-
-        profile.save()
-        txn.status = "completed"
-        txn.save()
+            txn.status = "completed"
+            txn.save()
 
         return Response(TransactionSerializer(txn).data)
 
