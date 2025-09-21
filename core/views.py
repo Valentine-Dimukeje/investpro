@@ -704,40 +704,28 @@ token_generator = PasswordResetTokenGenerator()
 
 class PasswordResetRequestView(APIView):
     def post(self, request):
-        email = (request.data.get("email") or "").strip()
+        email = request.data.get("email")
         if not email:
             return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            # security: you can return 200 here to avoid email enumeration
-            return Response({"message": "If an account exists with that email, a reset link has been sent."}, status=status.HTTP_200_OK)
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
-        reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password/{uid}/{token}"
 
-        subject = "Password Reset Request - Heritage Investment"
-        html_content = f"""
-            <html><body>
-            <h2>Password reset</h2>
-            <p>Hi {user.first_name or user.username},</p>
-            <p>Click the button below to reset your password. This link will expire.</p>
-            <p><a href="{reset_link}">Reset password</a></p>
-            </body></html>
-        """
-        text_content = strip_tags(html_content)
+        reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
 
-        try:
-            send_html_email(subject, html_content, user.email, text_content)
-        except Exception as e:
-            # Log exception in production (not shown here)
-            return Response({"error": f"Failed to send email: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # ✅ Simple plain text email
+        subject = "Password Reset Request"
+        message = f"Click the link below to reset your password:\n{reset_link}"
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
 
         return Response({"message": "Password reset link sent to your email."}, status=status.HTTP_200_OK)
 
-
+        
 class PasswordResetConfirmView(APIView):
     def post(self, request):
         uidb64 = request.data.get("uid")
