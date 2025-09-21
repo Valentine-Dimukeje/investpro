@@ -35,6 +35,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from .models import Referral
+from .serializers import ReferralSerializer
 
 
 
@@ -52,6 +54,9 @@ from .serializers import (
 from .models import Transaction, Profile, Device
 from django.contrib.auth import get_user_model
 from django.utils.html import strip_tags
+from .utils_email import send_html_email
+
+User = get_user_model()
 
 
 
@@ -101,76 +106,86 @@ def send_html_email(subject, html_content, to_email):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_view(request):
-    email = request.data.get("email")
+    email = (request.data.get("email") or "").strip().lower()
     if not email:
         return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    password = request.data.get("password")
+    if not password:
+        return Response({"error": "Password is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         user = User.objects.get(email=email)
 
+        # If user exists but inactive, reactivate with new password
         if not user.is_active:
-            # 🔹 Reactivate the user
             user.is_active = True
-            user.set_password(request.data.get("password"))
+            user.set_password(password)
             user.save()
 
-            # ✅ Styled Welcome Back Email
-            html_content = f""" ... your HTML ... """
+            # Ensure profile exists and wallets set to zero
+            profile, _ = Profile.objects.get_or_create(user=user)
+            profile.main_wallet = profile.main_wallet or 0
+            profile.profit_wallet = profile.profit_wallet or 0
+            profile.save()
+
+            # Welcome back email (non-blocking)
+            html_content = f"""\
+                <html>
+                <body>
+                    <h1>Welcome back to Heritage Investment</h1>
+                    <p>Hi {user.first_name or user.username}, your account has been reactivated.</p>
+                </body>
+                </html>
+            """
             text_content = strip_tags(html_content)
             try:
-                send_html_email("🎉 Welcome Back to Heritage Investment!", html_content, email, text_content)
+                send_html_email("🎉 Welcome Back to Heritage Investment!", html_content, user.email, text_content)
             except Exception:
-                pass  # don't block registration if email fails
+                # do not block return if email fails
+                pass
 
             refresh = RefreshToken.for_user(user)
-            return Response(
-                {
-                    "message": "Account reactivated successfully",
-                    "user": UserSerializer(user).data,
-                    "access": str(refresh.access_token),
-                    "refresh": str(refresh),
-                },
-                status=status.HTTP_200_OK,
-            )
+            return Response({
+                "message": "Account reactivated successfully",
+                "user": UserSerializer(user).data,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh)
+            }, status=status.HTTP_200_OK)
 
-        return Response(
-            {"error": "This email is already registered. Please log in."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return Response({"error": "This email is already registered. Please log in."}, status=status.HTTP_400_BAD_REQUEST)
 
     except User.DoesNotExist:
-        # ✅ Fresh registration
+        # New user registration
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
 
-            # ✅ Styled Welcome Email
-            html_content = f""" ... your HTML ... """
+            # Welcome email (non-blocking)
+            html_content = f"""\
+                <html>
+                <body>
+                    <h1>Welcome to Heritage Investment</h1>
+                    <p>Hi {user.first_name or user.username}, thanks for signing up.</p>
+                    <p><a href="{request.build_absolute_uri('/')}">Go to site</a></p>
+                </body>
+                </html>
+            """
             text_content = strip_tags(html_content)
             try:
-                send_html_email("🎉 Welcome to Heritage Investment!", html_content, email, text_content)
+                send_html_email("🎉 Welcome to Heritage Investment!", html_content, user.email, text_content)
             except Exception:
-                pass  # don't block registration if email fails
+                pass
 
             refresh = RefreshToken.for_user(user)
-            return Response(
-                {
-                    "message": "Account created successfully",
-                    "user": UserSerializer(user).data,
-                    "access": str(refresh.access_token),
-                    "refresh": str(refresh),
-                },
-                status=status.HTTP_201_CREATED,
-            )
+            return Response({
+                "message": "Account created successfully",
+                "user": UserSerializer(user).data,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh)
+            }, status=status.HTTP_201_CREATED)
 
-        return Response(
-            {
-                "message": "Registration failed",
-                "errors": serializer.errors,
-            },
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
+        return Response({"message": "Registration failed", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["POST"])
@@ -252,6 +267,17 @@ class MyTokenObtainPairView(TokenObtainPairView):
 def get_profile(request):
     serializer = UserProfileSerializer(request.user)
     return Response(serializer.data)
+
+
+# core/views.py
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_referrals(request):
+    referrals = Referral.objects.filter(user=request.user)
+    serializer = ReferralSerializer(referrals, many=True)
+    return Response({"referrals": serializer.data})
+
+
 
 
 @api_view(["POST"])
@@ -675,32 +701,39 @@ from django.utils.encoding import force_bytes, force_str
 token_generator = PasswordResetTokenGenerator()
 
 
+
 class PasswordResetRequestView(APIView):
     def post(self, request):
-        email = request.data.get("email")
+        email = (request.data.get("email") or "").strip()
         if not email:
             return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            # security: you can return 200 here to avoid email enumeration
+            return Response({"message": "If an account exists with that email, a reset link has been sent."}, status=status.HTTP_200_OK)
 
-        # Generate uid + token
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = token_generator.make_token(user)
-
-        reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
+        token = default_token_generator.make_token(user)
+        reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password/{uid}/{token}"
 
         subject = "Password Reset Request - Heritage Investment"
-        message = f"Click the link below to reset your password:\n{reset_link}"
-        from_email = settings.DEFAULT_FROM_EMAIL
-        recipient_list = [email]
+        html_content = f"""
+            <html><body>
+            <h2>Password reset</h2>
+            <p>Hi {user.first_name or user.username},</p>
+            <p>Click the button below to reset your password. This link will expire.</p>
+            <p><a href="{reset_link}">Reset password</a></p>
+            </body></html>
+        """
+        text_content = strip_tags(html_content)
 
         try:
-            send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+            send_html_email(subject, html_content, user.email, text_content)
         except Exception as e:
-            return Response({"error": f"Email sending failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Log exception in production (not shown here)
+            return Response({"error": f"Failed to send email: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({"message": "Password reset link sent to your email."}, status=status.HTTP_200_OK)
 
@@ -712,18 +745,17 @@ class PasswordResetConfirmView(APIView):
         password = request.data.get("password")
 
         if not uidb64 or not token or not password:
-            return Response({"error": "UID, token, and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "UID, token and password required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
-        except (User.DoesNotExist, ValueError, TypeError):
-            return Response({"error": "Invalid UID"}, status=status.HTTP_400_BAD_REQUEST)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({"error": "Invalid UID."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not token_generator.check_token(user, token):
-            return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+        if not default_token_generator.check_token(user, token):
+            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(password)
         user.save()
-
-        return Response({"message": "Password reset successful"}, status=status.HTTP_200_OK)
+        return Response({"message": "Password reset successful."}, status=status.HTTP_200_OK)

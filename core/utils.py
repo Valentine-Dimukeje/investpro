@@ -3,6 +3,7 @@ import pycountry
 
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
+from django.conf import settings
 
 
 def country_to_flag(alpha2: str) -> str:

@@ -34,6 +34,7 @@ urlpatterns = [
     path("dashboard-summary/", views.dashboard_summary, name="dashboard_summary"),
     path("send-email/", views.send_test_email, name="send_email"),
     path("auth/notifications/update", views.update_notifications, name="update_notifications"),
+    path("user/referrals/", views.get_referrals, name="user-referrals"),
 
     path("auth/password-reset/", PasswordResetRequestView.as_view(), name="password_reset"),
     path("auth/password-reset-confirm/", PasswordResetConfirmView.as_view(), name="password_reset_confirm"),

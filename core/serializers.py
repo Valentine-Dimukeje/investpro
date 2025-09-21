@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from .models import Profile, Transaction, Device, Investment
 from .utils import lookup_country_code, country_to_flag
 from decimal import Decimal, InvalidOperation
+from .models import Referral
 
 class UserProfileSerializer(serializers.ModelSerializer):
     main_wallet = serializers.DecimalField(source="profile.main_wallet", max_digits=12, decimal_places=2)
@@ -37,6 +38,28 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_devices(self, obj):
         # If you’re not tracking devices yet, return []
         return []
+
+
+class ReferralSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    email = serializers.SerializerMethodField()
+    joined = serializers.DateTimeField(source="created_at", format="%Y-%m-%d")
+    status = serializers.SerializerMethodField()
+    earnings = serializers.DecimalField(source="bonus_amount", max_digits=12, decimal_places=2)
+
+    class Meta:
+        model = Referral
+        fields = ["name", "email", "joined", "status", "earnings"]
+
+    def get_name(self, obj):
+        return obj.referred_user.get_full_name() or obj.referred_user.username
+
+    def get_email(self, obj):
+        return obj.referred_user.email
+
+    def get_status(self, obj):
+        # Example: you can define real status logic (Active = has deposits, etc.)
+        return "Active" if obj.bonus_amount > 0 else "Pending"
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -104,6 +127,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "sms": profile.sms_notifications,
             "system": profile.system_notifications,
         }
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, min_length=6)
     phone = serializers.CharField(required=False, allow_blank=True)
@@ -113,13 +137,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ["email", "first_name", "last_name", "password", "phone", "country"]
 
+    def validate_email(self, value):
+        # allow reactivation logic in view, so don't fail here in all cases.
+        return value.lower()
+
     def create(self, validated_data):
         phone = validated_data.pop("phone", "")
         country = validated_data.pop("country", "")
 
-        email = validated_data["email"]
+        email = validated_data["email"].lower()
 
-        # Always force username = email
         user = User(
             username=email,
             email=email,
@@ -127,12 +154,19 @@ class RegisterSerializer(serializers.ModelSerializer):
             last_name=validated_data.get("last_name", "")
         )
         user.set_password(validated_data["password"])
+        user.is_active = True
         user.save()
 
-        # Profile handling
-        profile, _ = Profile.objects.get_or_create(user=user)
+        # Ensure profile exists and wallets default to 0
+        profile, created = Profile.objects.get_or_create(user=user)
+        # make sure numeric fields are initialized to Decimal('0.00') by model defaults,
+        # but explicitly set here for safety in some migration states:
+        profile.main_wallet = profile.main_wallet or 0
+        profile.profit_wallet = profile.profit_wallet or 0
+
         if phone:
             profile.phone = phone
+
         if country:
             try:
                 code = lookup_country_code(country)
@@ -140,10 +174,9 @@ class RegisterSerializer(serializers.ModelSerializer):
                 profile.flag = country_to_flag(code)
             except Exception:
                 profile.country = country  # fallback if lookup fails
+
         profile.save()
-
         return user
-
 
 
 
