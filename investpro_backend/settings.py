@@ -207,17 +207,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Email Configuration
 # ====================
 if DJANGO_ENV == "development":
-    # Local testing → emails show in terminal instead of sending
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="heritageinvestmentgrup@gmail.com")
 
-
 else:
-    # Production → use Brevo SMTP
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_HOST = "smtp-relay.brevo.com"
     EMAIL_PORT = 587
     EMAIL_USE_TLS = True
-    EMAIL_HOST_USER = env("DEFAULT_FROM_EMAIL")       # must match verified Brevo sender
-    EMAIL_HOST_PASSWORD = env("BREVO_API_KEY")        # use Brevo API key for SMTP password
-    DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
+    EMAIL_HOST_USER = "no-reply@heritageinvestmentgrup.com"   # verified Brevo sender
+    EMAIL_HOST_PASSWORD = env("BREVO_API_KEY")                # your Brevo API key
+    DEFAULT_FROM_EMAIL = "Heritage Investment <no-reply@heritageinvestmentgrup.com>"

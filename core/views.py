@@ -236,7 +236,7 @@ def send_test_email(request):
         send_mail(
             subject="Hello from Django + Brevo 🎉",
             message="If you got this email, Brevo API is working!",
-            from_email=None,  # will use DEFAULT_FROM_EMAIL from settings.py
+            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[request.user.email],
 
 
@@ -725,7 +725,7 @@ class PasswordResetRequestView(APIView):
 
         return Response({"message": "Password reset link sent to your email."}, status=status.HTTP_200_OK)
 
-        
+
 class PasswordResetConfirmView(APIView):
     def post(self, request):
         uidb64 = request.data.get("uid")
