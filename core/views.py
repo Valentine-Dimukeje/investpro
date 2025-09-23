@@ -18,6 +18,8 @@ from rest_framework import status
 token_generator = PasswordResetTokenGenerator()
 
 
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
 
 from django.http import JsonResponse
 from django.core.mail import send_mail
@@ -38,6 +40,18 @@ from rest_framework.response import Response
 from .models import Referral
 from .serializers import ReferralSerializer
 
+
+from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.conf import settings
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
 
 
 
@@ -231,20 +245,35 @@ def me_view(request):
     return Response({"detail": "Not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
 
 
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
 def send_test_email(request):
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key['api-key'] = settings.BREVO_API_KEY  
+
+    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+
+    subject = "🚀 Heritage Investment Email Test"
+    html_content = """
+        <h1>Hello from Heritage Investment</h1>
+        <p>This is a test email sent using <strong>Brevo API</strong> 🎉</p>
+    """
+    sender = {"name": "Heritage Investment", "email": settings.DEFAULT_FROM_EMAIL}
+    to = [{"email": "heritageinvestmentgrup@gmail.com"}]  # 🔴 Replace with your own inbox
+
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        to=to,
+        html_content=html_content,
+        subject=subject,
+        sender=sender,
+    )
+
     try:
-        send_mail(
-            subject="Hello from Django + Brevo 🎉",
-            message="If you got this email, Brevo API is working!",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[request.user.email],
-
-
-            fail_silently=False,
-        )
-        return JsonResponse({"status": "success", "message": "Email sent!"})
-    except Exception as e:
-        return JsonResponse({"status": "error", "message": str(e)})
+        response = api_instance.send_transac_email(send_smtp_email)
+        return JsonResponse({"status": "success", "message": "✅ Test email sent!", "response": str(response)})
+    except ApiException as e:
+        return JsonResponse({"status": "error", "message": f"Email sending failed: {e}"})
 
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -694,18 +723,6 @@ def raw_debug_view(request):
         "headers": dict(request.headers),
     })
 
-# views.py
-
-from django.contrib.auth.models import User
-from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
-from django.utils.encoding import force_bytes, force_str
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.conf import settings
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-
 
 class PasswordResetRequestView(APIView):
     def post(self, request):
@@ -716,20 +733,38 @@ class PasswordResetRequestView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            # ✅ Do not reveal if user exists (security best practice)
-            return Response({"message": "✅ Email sent! Please check your inbox."}, status=status.HTTP_200_OK)
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
-
         reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
 
-        # ✅ Send plain text email
-        subject = "Password Reset Request"
-        message = f"Click the link below to reset your password:\n{reset_link}"
-        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
+        # Brevo setup
+        configuration = sib_api_v3_sdk.Configuration()
+        configuration.api_key['api-key'] = settings.BREVO_API_KEY  
 
-        return Response({"message": "✅ Email sent! Please check your inbox."}, status=status.HTTP_200_OK)
+        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+        subject = "Password Reset Request"
+        html_content = f"""
+            <p>Hello {user.username},</p>
+            <p>Click the link below to reset your password:</p>
+            <p><a href="{reset_link}">{reset_link}</a></p>
+        """
+        sender = {"name": "Heritage Investment", "email": settings.DEFAULT_FROM_EMAIL}
+        to = [{"email": email}]
+
+        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+            to=to,
+            html_content=html_content,
+            subject=subject,
+            sender=sender,
+        )
+
+        try:
+            api_instance.send_transac_email(send_smtp_email)
+            return Response({"message": "✅ Password reset email sent!"}, status=status.HTTP_200_OK)
+        except ApiException as e:
+            return Response({"error": f"Email sending failed: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PasswordResetConfirmView(APIView):
