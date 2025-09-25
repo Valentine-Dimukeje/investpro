@@ -68,7 +68,7 @@ from .serializers import (
 from .models import Transaction, Profile, Device
 from django.contrib.auth import get_user_model
 from django.utils.html import strip_tags
-from .utils_email import send_html_email
+from .email import send_brevo_email
 
 User = get_user_model()
 
@@ -723,7 +723,6 @@ def raw_debug_view(request):
         "headers": dict(request.headers),
     })
 
-
 class PasswordResetRequestView(APIView):
     def post(self, request):
         email = request.data.get("email")
@@ -739,32 +738,17 @@ class PasswordResetRequestView(APIView):
         token = default_token_generator.make_token(user)
         reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
 
-        # Brevo setup
-        configuration = sib_api_v3_sdk.Configuration()
-        configuration.api_key['api-key'] = settings.BREVO_API_KEY  
-
-        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
         subject = "Password Reset Request"
         html_content = f"""
             <p>Hello {user.username},</p>
             <p>Click the link below to reset your password:</p>
             <p><a href="{reset_link}">{reset_link}</a></p>
         """
-        sender = {"name": "Heritage Investment", "email": settings.DEFAULT_FROM_EMAIL}
-        to = [{"email": email}]
 
-        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
-            to=to,
-            html_content=html_content,
-            subject=subject,
-            sender=sender,
-        )
-
-        try:
-            api_instance.send_transac_email(send_smtp_email)
+        result = send_brevo_email(subject, html_content, user.email, user.username)
+        if result["success"]:
             return Response({"message": "✅ Password reset email sent!"}, status=status.HTTP_200_OK)
-        except ApiException as e:
-            return Response({"error": f"Email sending failed: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": f"Email failed: {result['error']}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PasswordResetConfirmView(APIView):
