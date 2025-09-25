@@ -34,22 +34,24 @@ def send_sms(to, message):
         data={"From": from_number, "To": to, "Body": message},
         auth=(twilio_sid, twilio_token)
     )
-
-# --- Send Welcome Notification ---
 @receiver(post_save, sender=User)
 def send_welcome_notification(sender, instance, created, **kwargs):
     if created:
         profile = getattr(instance, "profile", None)
         if profile and profile.email_notifications:
-            send_mail(
-                "Welcome to Our Site",
-                f"Hi {instance.first_name or instance.username}, welcome to our platform!",
-                settings.DEFAULT_FROM_EMAIL,
-                [instance.email],
-                fail_silently=True
-            )
+            try:
+                send_brevo_email(
+                    "Welcome to Our Site",
+                    f"<p>Hi {instance.first_name or instance.username}, welcome to our platform!</p>",
+                    instance.email,
+                    instance.username
+                )
+            except Exception as e:
+                print("⚠️ Welcome email failed:", e)
+
         if profile and profile.sms_notifications and profile.phone:
             send_sms(profile.phone, "Welcome to our platform!")
+
 
 # --- Send Login Alert ---
 @receiver(user_logged_in)
