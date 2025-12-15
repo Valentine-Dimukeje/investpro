@@ -29,9 +29,9 @@ ALLOWED_HOSTS = env.list(
     default=[
         "127.0.0.1",
         "localhost",
-        "heritageinvestmentgrup.com",
-        "www.heritageinvestmentgrup.com",
-        "api.heritageinvestmentgrup.com",
+        "octa-invest.onrender.com",
+        "octa-investment.com",
+        "www.octa-investment.com",
     ],
 )
 
@@ -93,19 +93,19 @@ if DJANGO_ENV == "development":
 else:
     # Production domains
     CORS_ALLOWED_ORIGINS = [
-        "https://my-frontend-9qlg.onrender.com",
-        "https://heritageinvestmentgrup.com",
-        "https://www.heritageinvestmentgrup.com",
-        "https://api.heritageinvestmentgrup.com",
+        "https://octa-investment.com",
+        "https://www.octa-investment.com",
+        "https://octa-invest.onrender.com",
     ]
+
     CSRF_TRUSTED_ORIGINS = [
-        "https://my-frontend-9qlg.onrender.com",
-        "https://heritageinvestmentgrup.com",
-        "https://www.heritageinvestmentgrup.com",
-        "https://api.heritageinvestmentgrup.com",
+        "https://octa-investment.com",
+        "https://www.octa-investment.com",
     ]
+
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
+
 
 # Common settings
 CORS_ALLOW_CREDENTIALS = True

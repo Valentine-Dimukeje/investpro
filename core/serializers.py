@@ -7,9 +7,16 @@ from decimal import Decimal, InvalidOperation
 from .models import Referral
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    main_wallet = serializers.DecimalField(source="profile.main_wallet", max_digits=12, decimal_places=2)
-    profit_wallet = serializers.DecimalField(source="profile.profit_wallet", max_digits=12, decimal_places=2)
-    wallet_balance = serializers.DecimalField(source="profile.wallet_balance", max_digits=12, decimal_places=2)
+    main_wallet = serializers.DecimalField(
+        source="profile.main_wallet",
+        max_digits=12,
+        decimal_places=2
+    )
+    profit_wallet = serializers.DecimalField(
+        source="profile.profit_wallet",
+        max_digits=12,
+        decimal_places=2
+    )
     phone = serializers.CharField(source="profile.phone", allow_null=True, required=False)
     country = serializers.SerializerMethodField()
     flag = serializers.CharField(source="profile.flag", allow_null=True)
@@ -19,10 +26,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "username", "email", "first_name", "last_name",
-            "main_wallet", "profit_wallet", "wallet_balance",
-            "phone", "country", "flag", "notifications", "devices"
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "main_wallet",
+            "profit_wallet",
+            "phone",
+            "country",
+            "flag",
+            "notifications",
+            "devices",
         ]
+
 
     def get_country(self, obj):
         return str(obj.profile.country) if obj.profile.country else None
@@ -161,9 +177,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         profile, created = Profile.objects.get_or_create(user=user)
         # make sure numeric fields are initialized to Decimal('0.00') by model defaults,
         # but explicitly set here for safety in some migration states:
-        profile.main_wallet = profile.main_wallet or 0
-        profile.profit_wallet = profile.profit_wallet or 0
-
+       
         if phone:
             profile.phone = phone
 

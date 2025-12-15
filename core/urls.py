@@ -12,6 +12,9 @@ urlpatterns = [
     path("auth/register/", views.register_view),
     path("auth/login/", views.login_view),
     path("auth/me/", views.me_view),
+    path("profile/", views.get_profile, name="get_profile"),
+
+
     path("cors-test/", views.cors_test, name="cors_test"),
     path("raw-debug/", views.raw_debug_view, name="raw_debug"),
     # path("auth/register/", views.register_view, name="auth-register"),
@@ -27,7 +30,7 @@ urlpatterns = [
     path("transactions/", views.transactions_view, name="transactions"),
     path("transactions/<int:pk>/admin-action/", views.admin_transaction_action, name="admin-transaction-action"),
     path("deposit/", views.deposit, name="deposit"),
-    path("deposit/approve/<int:txn_id>/", views.approve_deposit, name="approve_deposit"),
+    # path("deposit/approve/<int:txn_id>/", views.approve_deposit, name="approve_deposit"),
     path("withdraw/", views.withdraw_view, name="withdraw"),
     path("invest/", views.invest_view, name="invest"),
     path("investments/", views.investments_list, name="investments_list"),

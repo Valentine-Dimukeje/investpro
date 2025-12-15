@@ -53,7 +53,7 @@ from rest_framework import status
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 
-
+from .serializers import UserProfileSerializer  # ✅ ADD TH
 
 import user_agents
 import logging
@@ -205,34 +205,44 @@ def register_view(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def login_view(request):
+    print("==== LOGIN DEBUG START ====")
+    print("RAW BODY:", request.body)
+    print("PARSED request.data:", request.data)
+    print("HEADERS:", request.headers)
+    print("==== LOGIN DEBUG END ====")
+
     email_or_username = request.data.get("username") or request.data.get("email")
     password = request.data.get("password")
 
-    user = None
+    if not email_or_username or not password:
+        return Response({"detail": "Email/username and password required."}, status=400)
 
-    # Try direct authentication (works if username==email)
-    user = authenticate(request, username=email_or_username, password=password)
+    # Accept login using either email OR username
+    try:
+        user = User.objects.get(email=email_or_username)
+        username = user.username
+    except User.DoesNotExist:
+        username = email_or_username
 
-    # If failed, fallback: check by email
-    if user is None:
-        try:
-            user_obj = User.objects.get(email=email_or_username)
-            user = authenticate(request, username=user_obj.username, password=password)
-        except User.DoesNotExist:
-            pass
+    user = authenticate(username=username, password=password)
 
-    if user is not None:
-        refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "user": UserSerializer(user).data,
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-            },
-            status=status.HTTP_200_OK,
-        )
+    if not user:
+        return Response({"detail": "Invalid credentials"}, status=401)
 
-    return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+    # Generate JWT tokens
+    refresh = RefreshToken.for_user(user)
+
+    return Response({
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email
+        }
+    })
+
+
 
 # ----------------------
 # Current user
@@ -423,51 +433,32 @@ def transactions_view(request):
 
     return Response(TransactionSerializer(txn).data, status=status.HTTP_201_CREATED)
 
+from django.db import transaction as db_transaction
 
 @api_view(["POST"])
 @permission_classes([IsAdminUser])
 def admin_transaction_action(request, pk):
-    try:
-        txn = Transaction.objects.get(pk=pk)
-    except Transaction.DoesNotExist:
-        return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+    txn = Transaction.objects.get(pk=pk)
 
     action = request.data.get("action")
-    if action not in ("approve", "reject"):
-        return Response({"detail": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
-
-    if txn.status != "pending":
-        return Response({"detail": "Transaction already processed"}, status=status.HTTP_400_BAD_REQUEST)
 
     if action == "approve":
-        if txn.type == "deposit":
-            # don't directly update profile here - signal will handle crediting on status change
-            txn.status = "completed"
-            txn.save()
-        elif txn.type == "withdraw":
-            # For withdraw, you might want to check funds and then mark completed; signal can also handle deduction
-            # For now, ensure you change status and let signals handle profile update consistent with deposits
-            txn.status = "completed"
-            txn.save()
-        elif txn.type == "investment":
-            # mark investment active/completed as appropriate
-            txn.status = "completed"
-            txn.save()
-        elif txn.type == "profit":
-            txn.status = "completed"
-            txn.save()
+        txn.status = "completed"
+        txn.save(update_fields=["status"])
 
-        return Response(TransactionSerializer(txn).data)
+    elif action == "reject":
+        txn.status = "rejected"
+        txn.save(update_fields=["status"])
 
-    # reject
-    txn.status = "rejected"
-    txn.save()
     return Response(TransactionSerializer(txn).data)
+
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def deposit(request):
+
+    print("AUTH HEADER:", request.headers.get("Authorization"))
     user = request.user
     data = request.data
 
@@ -496,35 +487,7 @@ def deposit(request):
         "transaction": TransactionSerializer(txn).data,
         "new_balance": str(user.profile.main_wallet),  # balance unchanged until approved
     }, status=201)
-
-
-# ----------- APPROVE DEPOSIT (ADMIN ONLY) -----------
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def approve_deposit(request, txn_id):
-    try:
-        txn = Transaction.objects.get(id=txn_id, type="deposit")
-    except Transaction.DoesNotExist:
-        return Response({"error": "Transaction not found"}, status=404)
-
-    if txn.status != "pending":
-        return Response({"error": "Transaction already processed"}, status=400)
-
-    profile = txn.user.profile
-
-    # Credit deposit to main wallet
-    profile.main_wallet += txn.amount
-    profile.save()
-
-    txn.status = "completed"
-    txn.save()
-
-    return Response({
-        "message": "✅ Deposit approved and credited.",
-        "transaction": TransactionSerializer(txn).data,
-        "new_balance": str(profile.main_wallet),
-    })
-
+    
 
 # --- CREATE INVESTMENT (deduct from wallet, save plan & rate) ---
 @api_view(["POST"])
@@ -649,6 +612,8 @@ def _fmt(v):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
+
+    print("AUTH HEADER:", request.headers.get("Authorization"))
     user = request.user
     tx = Transaction.objects.filter(user=user)
 
@@ -672,6 +637,7 @@ def dashboard_summary(request):
         "total_earnings": _fmt(earnings),
         "recent": recent,
     })
+
 
 
 @api_view(["POST"])

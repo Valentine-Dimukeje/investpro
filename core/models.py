@@ -16,15 +16,25 @@ from django.contrib.auth.models import User
 from phonenumber_field.modelfields import PhoneNumberField
 from django_countries.fields import CountryField
 
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    wallet_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # wallet_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     phone = PhoneNumberField(blank=True, null=True)
     country = CountryField(blank=True, null=True)
     flag = models.CharField(max_length=10, blank=True, null=True)  # NEW FIELD
 
     # existing fields...
-    main_wallet = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    main_wallet = models.DecimalField(
+    max_digits=12,
+    decimal_places=2,
+    default=Decimal("0.00")
+)
+
     profit_wallet = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     email_notifications = models.BooleanField(default=True)
     sms_notifications = models.BooleanField(default=True)
@@ -69,16 +79,6 @@ def create_profile(sender, instance, created, **kwargs):
         Profile.objects.create(user=instance)
 
 
-# @receiver(post_save, sender=Transaction)
-# def handle_deposit_approval(sender, instance, created, **kwargs):
-#     """
-#     When an admin approves a deposit (status -> completed), 
-#     credit the user's wallet.
-#     """
-#     if not created and instance.type == "deposit" and instance.status == "completed":
-#         wallet, _ = Wallet.objects.get_or_create(user=instance.user)
-#         wallet.main_balance += instance.amount
-#         wallet.save()
 
 
 class Referral(models.Model):
@@ -129,14 +129,3 @@ class Investment(models.Model):
         rate = self.PLAN_RATES.get(self.plan, Decimal("0.05"))
         return self.amount * rate * weeks
 
-
-# class ActivityLog(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="activities")
-#     action = models.CharField(max_length=255)  # e.g., "Visited Dashboard", "Clicked Invest Now"
-#     page = models.CharField(max_length=255, null=True, blank=True)  # e.g., "/admin/plans"
-#     ip_address = models.GenericIPAddressField(null=True, blank=True)
-#     user_agent = models.TextField(null=True, blank=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
-
-#     def __str__(self):
-#         return f"{self.user.username} - {self.action} ({self.created_at})"

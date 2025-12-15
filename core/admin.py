@@ -1,6 +1,8 @@
 # core/admin.py
 from django.contrib import admin
 from .models import Profile, Transaction, Referral, Device
+from core.services.wallet import approve_deposit
+
 
 
 @admin.register(Profile)
@@ -26,12 +28,14 @@ class ReferralAdmin(admin.ModelAdmin):
 class DeviceAdmin(admin.ModelAdmin):
     list_display = ("user", "device_name", "ip_address", "last_active")
 
-
-# @admin.register(ActivityLog)
-# class ActivityLogAdmin(admin.ModelAdmin):
-#     list_display = ("user", "action", "page", "ip_address", "created_at")
-#     list_filter = ("action", "created_at")
-#     search_fields = ("user__username", "page", "action")
-#     ordering = ("-created_at",)
+def save_model(self, request, obj, form, change):
+    if (
+        change
+        and obj.type == "deposit"
+        and obj.status == "completed"
+    ):
+        approve_deposit(obj)
+    else:
+        super().save_model(request, obj, form, change)
 
     
