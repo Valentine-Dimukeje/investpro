@@ -1,1 +1,1 @@
-web: gunicorn investpro.wsgi:application
+web: gunicorn investpro_backend.wsgi:application --bind 0.0.0.0:$PORT
