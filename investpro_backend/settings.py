@@ -21,8 +21,8 @@ else:
 # ----------------------
 # Security
 # ----------------------
-SECRET_KEY = env("DJANGO_SECRET_KEY", default="fallback-secret-key")
-DEBUG = env.bool("DJANGO_DEBUG", default=(DJANGO_ENV == "development"))
+SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-secret-key")
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = env.list(
     "DJANGO_ALLOWED_HOSTS",
@@ -204,17 +204,10 @@ FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ====================
-# Email Configuration
+# Brevo Email Settings
 # ====================
-if DJANGO_ENV == "development":
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-    DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="heritageinvestmentgrup@gmail.com")
+BREVO_API_KEY = env("BREVO_API_KEY")  
 
-else:
-    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-    EMAIL_HOST = "smtp-relay.brevo.com"
-    EMAIL_PORT = 587
-    EMAIL_USE_TLS = True
-    EMAIL_HOST_USER = "no-reply@heritageinvestmentgrup.com"   # verified Brevo sender
-    EMAIL_HOST_PASSWORD = env("BREVO_API_KEY")                # your Brevo API key
-    DEFAULT_FROM_EMAIL = "Heritage Investment <no-reply@heritageinvestmentgrup.com>"
+# Default sender (must be verified in Brevo dashboard)
+DEFAULT_FROM_EMAIL = "no-reply@heritageinvestmentgrup.com"
+DEFAULT_FROM_NAME = "Heritage Investment"

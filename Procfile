@@ -1,1 +1,1 @@
-web: gunicorn octa investment.wsgi:application
+web: gunicorn investpro.wsgi:application

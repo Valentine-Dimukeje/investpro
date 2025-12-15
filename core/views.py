@@ -53,7 +53,15 @@ from rest_framework import status
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 
+<<<<<<< HEAD
 from .serializers import UserProfileSerializer  # ✅ ADD TH
+=======
+from core.utils_email import send_brevo_email
+from django.template.loader import render_to_string
+
+
+
+>>>>>>> 3a99d66d26c7381bd1d78d4e6712e5beb3c2cab3
 
 import user_agents
 import logging
@@ -68,7 +76,7 @@ from .serializers import (
 from .models import Transaction, Profile, Device
 from django.contrib.auth import get_user_model
 from django.utils.html import strip_tags
-from .utils_email import send_html_email
+from .email import send_brevo_email
 
 User = get_user_model()
 
@@ -106,16 +114,6 @@ def track_device(request, user):
 # logger = logging.getLogger(__name__)
 
 
-# views.py
-def send_html_email(subject, html_content, to_email):
-    """
-    Utility to send HTML + plain text email
-    """
-    text_content = strip_tags(html_content)  # fallback for non-HTML clients
-    email = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [to_email])
-    email.attach_alternative(html_content, "text/html")
-    email.send(fail_silently=True)
-
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -137,27 +135,20 @@ def register_view(request):
             user.set_password(password)
             user.save()
 
-            # Ensure profile exists and wallets set to zero
             profile, _ = Profile.objects.get_or_create(user=user)
             profile.main_wallet = profile.main_wallet or 0
             profile.profit_wallet = profile.profit_wallet or 0
             profile.save()
 
-            # Welcome back email (non-blocking)
-            html_content = f"""\
-                <html>
-                <body>
-                    <h1>Welcome back to Heritage Investment</h1>
-                    <p>Hi {user.first_name or user.username}, your account has been reactivated.</p>
-                </body>
-                </html>
+            # 🎉 Welcome back email via Brevo
+            html_content = f"""
+                <h1>Welcome back to Heritage Investment</h1>
+                <p>Hi {user.first_name or user.username}, your account has been reactivated.</p>
             """
-            text_content = strip_tags(html_content)
             try:
-                send_html_email("🎉 Welcome Back to Heritage Investment!", html_content, user.email, text_content)
-            except Exception:
-                # do not block return if email fails
-                pass
+                send_brevo_email("🎉 Welcome Back to Heritage Investment!", html_content, user.email, user.username)
+            except Exception as e:
+                print("⚠️ Email send failed:", e)
 
             refresh = RefreshToken.for_user(user)
             return Response({
@@ -175,21 +166,16 @@ def register_view(request):
         if serializer.is_valid():
             user = serializer.save()
 
-            # Welcome email (non-blocking)
-            html_content = f"""\
-                <html>
-                <body>
-                    <h1>Welcome to Heritage Investment</h1>
-                    <p>Hi {user.first_name or user.username}, thanks for signing up.</p>
-                    <p><a href="{request.build_absolute_uri('/')}">Go to site</a></p>
-                </body>
-                </html>
+            # 🎉 Welcome email via Brevo
+            html_content = f"""
+                <h1>Welcome to Heritage Investment</h1>
+                <p>Hi {user.first_name or user.username}, thanks for signing up.</p>
+                <p><a href="{request.build_absolute_uri('/')}">Go to site</a></p>
             """
-            text_content = strip_tags(html_content)
             try:
-                send_html_email("🎉 Welcome to Heritage Investment!", html_content, user.email, text_content)
-            except Exception:
-                pass
+                send_brevo_email("🎉 Welcome to Heritage Investment!", html_content, user.email, user.username)
+            except Exception as e:
+                print("⚠️ Email send failed:", e)
 
             refresh = RefreshToken.for_user(user)
             return Response({
@@ -689,7 +675,6 @@ def raw_debug_view(request):
         "headers": dict(request.headers),
     })
 
-
 class PasswordResetRequestView(APIView):
     def post(self, request):
         email = request.data.get("email")
@@ -705,32 +690,19 @@ class PasswordResetRequestView(APIView):
         token = default_token_generator.make_token(user)
         reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
 
-        # Brevo setup
-        configuration = sib_api_v3_sdk.Configuration()
-        configuration.api_key['api-key'] = settings.BREVO_API_KEY  
-
-        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
         subject = "Password Reset Request"
         html_content = f"""
-            <p>Hello {user.username},</p>
-            <p>Click the link below to reset your password:</p>
-            <p><a href="{reset_link}">{reset_link}</a></p>
+            <h2>Hello {user.username},</h2>
+            <p>Click below to reset your password:</p>
+            <p><a href="{reset_link}">Reset Password</a></p>
+            <p>If you didn’t request this, ignore this email.</p>
         """
-        sender = {"name": "Heritage Investment", "email": settings.DEFAULT_FROM_EMAIL}
-        to = [{"email": email}]
-
-        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
-            to=to,
-            html_content=html_content,
-            subject=subject,
-            sender=sender,
-        )
 
         try:
-            api_instance.send_transac_email(send_smtp_email)
+            send_brevo_email(subject, html_content, email, user.username)
             return Response({"message": "✅ Password reset email sent!"}, status=status.HTTP_200_OK)
-        except ApiException as e:
-            return Response({"error": f"Email sending failed: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PasswordResetConfirmView(APIView):
