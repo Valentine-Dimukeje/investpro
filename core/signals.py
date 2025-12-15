@@ -2,10 +2,10 @@ from decimal import Decimal
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from .models import Transaction, Profile
+from django.contrib.auth import get_user_model
+from django.contrib.auth.signals import user_logged_in
 
 
-<<<<<<< HEAD
-=======
 User = get_user_model()
 
 
@@ -71,7 +71,7 @@ def get_client_ip(request):
 
 
 # store previous status before save
->>>>>>> 3a99d66d26c7381bd1d78d4e6712e5beb3c2cab3
+
 @receiver(pre_save, sender=Transaction)
 def store_previous_status(sender, instance, **kwargs):
     """
