@@ -24,16 +24,8 @@ else:
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-secret-key")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = env.list(
-    "DJANGO_ALLOWED_HOSTS",
-    default=[
-        "127.0.0.1",
-        "localhost",
-        "octa-invest.onrender.com",
-        "octa-investment.com",
-        "www.octa-investment.com",
-    ],
-)
+ALLOWED_HOSTS = ["*"]
+
 
 # ----------------------
 # Applications
@@ -206,8 +198,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ====================
 # Brevo Email Settings
 # ====================
-BREVO_API_KEY = env("BREVO_API_KEY")  
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+
+
 
 # Default sender (must be verified in Brevo dashboard)
-DEFAULT_FROM_EMAIL = "no-reply@heritageinvestmentgrup.com"
-DEFAULT_FROM_NAME = "Heritage Investment"
+# DEFAULT_FROM_EMAIL = "no-reply@heritageinvestmentgrup.com"
+# DEFAULT_FROM_NAME = "Heritage Investment"

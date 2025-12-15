@@ -53,15 +53,14 @@ from rest_framework import status
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 
-<<<<<<< HEAD
+
 from .serializers import UserProfileSerializer  # ✅ ADD TH
-=======
+
 from core.utils_email import send_brevo_email
 from django.template.loader import render_to_string
 
 
 
->>>>>>> 3a99d66d26c7381bd1d78d4e6712e5beb3c2cab3
 
 import user_agents
 import logging
