@@ -29,6 +29,7 @@ ALLOWED_HOSTS = [
     "web-production-d2bef.up.railway.app",
     "localhost",
     "127.0.0.1",
+    ".railway.app",  # ✅ ADD THIS
 ]
 
 
@@ -89,11 +90,12 @@ if DJANGO_ENV == "development":
     SESSION_COOKIE_SECURE = False
 
 else:
- CORS_ALLOWED_ORIGINS = [
-    "https://octa-investment.com",
-    "https://www.octa-investment.com",
-    "https://api.octa-investment.com",
-]
+    CORS_ALLOWED_ORIGINS = [
+        "https://octa-investment.com",
+        "https://www.octa-investment.com",
+        "https://api.octa-investment.com",
+    ]
+
 
 CSRF_TRUSTED_ORIGINS = [
     "https://octa-investment.com",
@@ -114,6 +116,10 @@ SECURE_SSL_REDIRECT = False
 
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+if DJANGO_ENV == "development":
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
 
 
 # ----------------------
