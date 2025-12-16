@@ -88,13 +88,12 @@ def get_client_ip(request):
     return request.META.get("REMOTE_ADDR")
 
 
-
 @api_view(["GET"])
 def create_admin_once(request):
     if User.objects.filter(username="admin").exists():
         return Response({"status": "admin already exists"})
 
-    user = User.objects.create_superuser(
+    User.objects.create_superuser(
         username="admin",
         email="admin@octa-investment.com",
         password="Admin12345!"
@@ -102,12 +101,11 @@ def create_admin_once(request):
 
     return Response({"status": "admin created"})
 
+
 @require_GET
 def reset_admin_password(request):
-    User = get_user_model()
-
-    username = "admin"  # 👈 change if your admin username is different
-    new_password = "Admin@12345"  # 🔐 change AFTER login
+    username = "admin"
+    new_password = "Admin@12345"
 
     try:
         user = User.objects.get(username=username)
@@ -118,17 +116,14 @@ def reset_admin_password(request):
 
         return JsonResponse({
             "status": "success",
-            "message": "Admin password reset successfully",
-            "username": username,
-            "password": new_password
+            "message": "Admin password reset successfully"
         })
 
     except User.DoesNotExist:
-        return JsonResponse({
-            "status": "error",
-            "message": "Admin user not found"
-        }, status=404)
-
+        return JsonResponse(
+            {"status": "error", "message": "Admin user not found"},
+            status=404
+        )
 
 # ----------------------------
 # Track Device on Login
