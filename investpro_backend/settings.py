@@ -19,7 +19,7 @@ env_file = BASE_DIR / f".env.{DJANGO_ENV}"
 if env_file.exists():
     environ.Env.read_env(env_file)
 else:
-    print(f"⚠️ {env_file} not found, relying on system environment variables."
+    print(f"⚠️ {env_file} not found, relying on system environment variables.")
 
 # ----------------------
 # Security
