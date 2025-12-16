@@ -21,8 +21,9 @@ else:
 # ----------------------
 # Security
 # ----------------------
-SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-secret-key")
-DEBUG = os.getenv("DEBUG", "False") == "True"
+SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-secret-key")
+
+DEBUG = DJANGO_ENV == "development"
 
 ALLOWED_HOSTS = [
     "api.octa-investment.com",
@@ -55,9 +56,9 @@ INSTALLED_APPS = [
 # ----------------------
 # settings.py
 MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # 👈 MUST be right after SecurityMiddleware
     "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -114,14 +115,6 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 CORS_ALLOW_METHODS = list(default_methods)
 # 🔥 TURN THIS OFF ON RAILWAY
 SECURE_SSL_REDIRECT = False
-
-
-if DJANGO_ENV == "development":
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOW_ALL_ORIGINS = False
-
-
 
 USE_X_FORWARDED_HOST = True
 
@@ -207,7 +200,8 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
 
 
 
