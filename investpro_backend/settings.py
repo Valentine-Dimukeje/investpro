@@ -109,7 +109,9 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     "content-type",
 ]
 CORS_ALLOW_METHODS = list(default_methods)
-SECURE_SSL_REDIRECT = True
+# 🔥 TURN THIS OFF ON RAILWAY
+SECURE_SSL_REDIRECT = False
+
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
@@ -204,7 +206,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ====================
 # Brevo Email Settings
 # ====================
-BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+# BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 
 
 
