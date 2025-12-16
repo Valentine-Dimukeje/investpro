@@ -22,7 +22,6 @@ import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 
 from django.http import JsonResponse
-from django.core.mail import send_mail
 
 
 from rest_framework.decorators import api_view, permission_classes
@@ -34,7 +33,6 @@ from django.db.models import Sum
 from decimal import Decimal
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from .models import Referral
@@ -77,11 +75,6 @@ from django.contrib.auth import get_user_model
 from django.utils.html import strip_tags
 from .email import send_brevo_email
 
-User = get_user_model()
-
-
-
-
 
 # ----------------------------
 # Helper: Get Client IP
@@ -91,6 +84,21 @@ def get_client_ip(request):
     if xff:
         return xff.split(",")[0].strip()
     return request.META.get("REMOTE_ADDR")
+
+
+
+@api_view(["GET"])
+def create_admin_once(request):
+    if User.objects.filter(username="admin").exists():
+        return Response({"status": "admin already exists"})
+
+    user = User.objects.create_superuser(
+        username="admin",
+        email="admin@octa-investment.com",
+        password="Admin12345!"
+    )
+
+    return Response({"status": "admin created"})
 
 
 # ----------------------------
@@ -109,76 +117,50 @@ def track_device(request, user):
         defaults={"last_active": timezone.now()}
     )
 
-# User = get_user_model()
-# logger = logging.getLogger(__name__)
 
-
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_view(request):
     email = (request.data.get("email") or "").strip().lower()
     password = request.data.get("password")
 
-    if not email:
-        return Response({"error": "Email is required"}, status=400)
-
-    if not password:
-        return Response({"error": "Password is required"}, status=400)
-
-    user = User.objects.filter(email=email).first()
-
-    if user:
-        if not user.is_active:
-            user.is_active = True
-            user.set_password(password)
-            user.save()
-
-            Profile.objects.get_or_create(user=user)
-
-            # Optional email
-            try:
-                send_brevo_email(
-                    "🎉 Welcome Back!",
-                    "<h1>Your account is reactivated</h1>",
-                    user.email,
-                    user.username,
-                )
-            except Exception as e:
-                print("Email skipped:", e)
-
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                "message": "Account reactivated",
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": UserSerializer(user).data,
-            })
-
-        return Response({"error": "Email already registered"}, status=400)
-
-    serializer = RegisterSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=400)
-
-    user = serializer.save()
-
-    try:
-        send_brevo_email(
-            "🎉 Welcome!",
-            "<h1>Welcome to Heritage Investment</h1>",
-            user.email,
-            user.username,
+    if not email or not password:
+        return Response(
+            {"error": "Email and password are required"},
+            status=status.HTTP_400_BAD_REQUEST
         )
-    except Exception as e:
-        print("Email skipped:", e)
+
+    if User.objects.filter(email=email).exists():
+        return Response(
+            {"error": "Email already registered"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    user = User.objects.create_user(
+        username=email,
+        email=email,
+        password=password,
+        is_active=True
+    )
+
+    # Ensure profile exists
+    from .models import Profile
+    Profile.objects.get_or_create(user=user)
 
     refresh = RefreshToken.for_user(user)
+
     return Response({
-        "message": "Account created",
+        "message": "Account created successfully",
         "access": str(refresh.access_token),
         "refresh": str(refresh),
-        "user": UserSerializer(user).data,
-    }, status=201)
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username
+        }
+    }, status=status.HTTP_201_CREATED)
+
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -220,48 +202,6 @@ def login_view(request):
         }
     })
 
-
-
-# ----------------------
-# Current user
-# ----------------------
-@api_view(["GET"])
-def me_view(request):
-    user = request.user
-    if user.is_authenticated:
-        return Response(UserSerializer(user).data)
-    return Response({"detail": "Not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
-
-
-
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def send_test_email(request):
-    configuration = sib_api_v3_sdk.Configuration()
-    configuration.api_key['api-key'] = settings.BREVO_API_KEY  
-
-    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
-
-    subject = "🚀 Heritage Investment Email Test"
-    html_content = """
-        <h1>Hello from Heritage Investment</h1>
-        <p>This is a test email sent using <strong>Brevo API</strong> 🎉</p>
-    """
-    sender = {"name": "Heritage Investment", "email": settings.DEFAULT_FROM_EMAIL}
-    to = [{"email": "heritageinvestmentgrup@gmail.com"}]  # 🔴 Replace with your own inbox
-
-    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
-        to=to,
-        html_content=html_content,
-        subject=subject,
-        sender=sender,
-    )
-
-    try:
-        response = api_instance.send_transac_email(send_smtp_email)
-        return JsonResponse({"status": "success", "message": "✅ Test email sent!", "response": str(response)})
-    except ApiException as e:
-        return JsonResponse({"status": "error", "message": f"Email sending failed: {e}"})
 
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):

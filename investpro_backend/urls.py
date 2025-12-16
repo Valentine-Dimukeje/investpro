@@ -17,11 +17,13 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
+from core.views import create_admin_once
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('core.urls')),
+    path("create-admin-once/", create_admin_once),
     
     
 ]
