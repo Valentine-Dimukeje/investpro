@@ -50,6 +50,8 @@ from rest_framework.response import Response
 from rest_framework import status
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
+from django.views.decorators.http import require_GET
+
 
 
 from .serializers import UserProfileSerializer  # ✅ ADD TH
