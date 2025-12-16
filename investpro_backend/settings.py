@@ -121,7 +121,7 @@ else:
     CORS_ALLOW_ALL_ORIGINS = False
 
 
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 USE_X_FORWARDED_HOST = True
 
 # ----------------------
