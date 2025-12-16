@@ -89,26 +89,29 @@ if DJANGO_ENV == "development":
     SESSION_COOKIE_SECURE = False
 
 else:
-    # Production domains
-   CORS_ALLOWED_ORIGINS = [
+ CORS_ALLOWED_ORIGINS = [
     "https://octa-investment.com",
     "https://www.octa-investment.com",
-    "https://web-production-d2bef.up.railway.app",
+    "https://api.octa-investment.com",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://octa-investment.com",
     "https://www.octa-investment.com",
-    "https://web-production-d2bef.up.railway.app",
+    "https://api.octa-investment.com",
 ]
 
 CORS_ALLOW_CREDENTIALS = False
+
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "authorization",
     "content-type",
 ]
 CORS_ALLOW_METHODS = list(default_methods)
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 
 
 # ----------------------
