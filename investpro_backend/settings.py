@@ -24,7 +24,11 @@ else:
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-secret-key")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = [
+    "api.octa-investment.com",
+    "vage4gzz.up.railway.app",
+]
+
 
 
 # ----------------------
