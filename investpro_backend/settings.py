@@ -6,12 +6,13 @@ from corsheaders.defaults import default_headers, default_methods
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+DJANGO_ENV = os.getenv("DJANGO_ENV", "production")
+DEBUG = DJANGO_ENV == "development"
 
 # ----------------------
 # Environment variables
 # ----------------------
-env = environ.Env(DEBUG=(bool, False))
-DJANGO_ENV = "production" if not DEBUG else "development"
+
 
 env_file = BASE_DIR / f".env.{DJANGO_ENV}"
 
@@ -202,11 +203,9 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 
-if not os.path.exists(STATIC_ROOT):
-    os.makedirs(STATIC_ROOT, exist_ok=True)
 
 
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
