@@ -68,7 +68,7 @@ MIDDLEWARE = [
 
 
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+# STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 
 # ----------------------
@@ -207,7 +207,7 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+# STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 
 
