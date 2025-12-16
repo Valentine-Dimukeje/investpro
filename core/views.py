@@ -100,6 +100,33 @@ def create_admin_once(request):
 
     return Response({"status": "admin created"})
 
+@require_GET
+def reset_admin_password(request):
+    User = get_user_model()
+
+    username = "admin"  # 👈 change if your admin username is different
+    new_password = "Admin@12345"  # 🔐 change AFTER login
+
+    try:
+        user = User.objects.get(username=username)
+        user.set_password(new_password)
+        user.is_staff = True
+        user.is_superuser = True
+        user.save()
+
+        return JsonResponse({
+            "status": "success",
+            "message": "Admin password reset successfully",
+            "username": username,
+            "password": new_password
+        })
+
+    except User.DoesNotExist:
+        return JsonResponse({
+            "status": "error",
+            "message": "Admin user not found"
+        }, status=404)
+
 
 # ----------------------------
 # Track Device on Login

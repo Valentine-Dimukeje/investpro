@@ -18,12 +18,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from core.views import create_admin_once
+from core.views import reset_admin_password
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('core.urls')),
     path("create-admin-once/", create_admin_once),
+    path("reset-admin-password/", reset_admin_password),
     
     
 ]
