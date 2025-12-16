@@ -26,7 +26,9 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = [
     "api.octa-investment.com",
-    "vage4gzz.up.railway.app",
+    "web-production-d2bef.up.railway.app",
+    "localhost",
+    "127.0.0.1",
 ]
 
 
