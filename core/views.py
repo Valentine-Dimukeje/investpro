@@ -113,79 +113,72 @@ def track_device(request, user):
 # logger = logging.getLogger(__name__)
 
 
-
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_view(request):
     email = (request.data.get("email") or "").strip().lower()
-    if not email:
-        return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
-
     password = request.data.get("password")
+
+    if not email:
+        return Response({"error": "Email is required"}, status=400)
+
     if not password:
-        return Response({"error": "Password is required"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Password is required"}, status=400)
 
-    try:
-        user = User.objects.get(email=email)
+    user = User.objects.filter(email=email).first()
 
-        # If user exists but inactive, reactivate with new password
+    if user:
         if not user.is_active:
             user.is_active = True
             user.set_password(password)
             user.save()
 
-            profile, _ = Profile.objects.get_or_create(user=user)
-            profile.main_wallet = profile.main_wallet or 0
-            profile.profit_wallet = profile.profit_wallet or 0
-            profile.save()
+            Profile.objects.get_or_create(user=user)
 
-            # 🎉 Welcome back email via Brevo
-            html_content = f"""
-                <h1>Welcome back to Heritage Investment</h1>
-                <p>Hi {user.first_name or user.username}, your account has been reactivated.</p>
-            """
+            # Optional email
             try:
-                send_brevo_email("🎉 Welcome Back to Heritage Investment!", html_content, user.email, user.username)
+                send_brevo_email(
+                    "🎉 Welcome Back!",
+                    "<h1>Your account is reactivated</h1>",
+                    user.email,
+                    user.username,
+                )
             except Exception as e:
-                print("⚠️ Email send failed:", e)
+                print("Email skipped:", e)
 
             refresh = RefreshToken.for_user(user)
             return Response({
-                "message": "Account reactivated successfully",
-                "user": UserSerializer(user).data,
+                "message": "Account reactivated",
                 "access": str(refresh.access_token),
-                "refresh": str(refresh)
-            }, status=status.HTTP_200_OK)
-
-        return Response({"error": "This email is already registered. Please log in."}, status=status.HTTP_400_BAD_REQUEST)
-
-    except User.DoesNotExist:
-        # New user registration
-        serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-
-            # 🎉 Welcome email via Brevo
-            html_content = f"""
-                <h1>Welcome to Heritage Investment</h1>
-                <p>Hi {user.first_name or user.username}, thanks for signing up.</p>
-                <p><a href="{request.build_absolute_uri('/')}">Go to site</a></p>
-            """
-            try:
-                send_brevo_email("🎉 Welcome to Heritage Investment!", html_content, user.email, user.username)
-            except Exception as e:
-                print("⚠️ Email send failed:", e)
-
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                "message": "Account created successfully",
+                "refresh": str(refresh),
                 "user": UserSerializer(user).data,
-                "access": str(refresh.access_token),
-                "refresh": str(refresh)
-            }, status=status.HTTP_201_CREATED)
+            })
 
-        return Response({"message": "Registration failed", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Email already registered"}, status=400)
 
+    serializer = RegisterSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=400)
+
+    user = serializer.save()
+
+    try:
+        send_brevo_email(
+            "🎉 Welcome!",
+            "<h1>Welcome to Heritage Investment</h1>",
+            user.email,
+            user.username,
+        )
+    except Exception as e:
+        print("Email skipped:", e)
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        "message": "Account created",
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+        "user": UserSerializer(user).data,
+    }, status=201)
 
 @api_view(["POST"])
 @permission_classes([AllowAny])

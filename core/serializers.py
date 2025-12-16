@@ -144,40 +144,30 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "system": profile.system_notifications,
         }
 
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, min_length=6)
+class RegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    first_name = serializers.CharField(required=False, allow_blank=True)
+    last_name = serializers.CharField(required=False, allow_blank=True)
+    password = serializers.CharField(write_only=True, min_length=6)
     phone = serializers.CharField(required=False, allow_blank=True)
     country = serializers.CharField(required=False, allow_blank=True)
-
-    class Meta:
-        model = User
-        fields = ["email", "first_name", "last_name", "password", "phone", "country"]
-
-    def validate_email(self, value):
-        # allow reactivation logic in view, so don't fail here in all cases.
-        return value.lower()
 
     def create(self, validated_data):
         phone = validated_data.pop("phone", "")
         country = validated_data.pop("country", "")
-
         email = validated_data["email"].lower()
 
-        user = User(
+        user = User.objects.create_user(
             username=email,
             email=email,
+            password=validated_data["password"],
             first_name=validated_data.get("first_name", ""),
-            last_name=validated_data.get("last_name", "")
+            last_name=validated_data.get("last_name", ""),
+            is_active=True,
         )
-        user.set_password(validated_data["password"])
-        user.is_active = True
-        user.save()
 
-        # Ensure profile exists and wallets default to 0
-        profile, created = Profile.objects.get_or_create(user=user)
-        # make sure numeric fields are initialized to Decimal('0.00') by model defaults,
-        # but explicitly set here for safety in some migration states:
-       
+        profile, _ = Profile.objects.get_or_create(user=user)
+
         if phone:
             profile.phone = phone
 
@@ -187,10 +177,11 @@ class RegisterSerializer(serializers.ModelSerializer):
                 profile.country = code
                 profile.flag = country_to_flag(code)
             except Exception:
-                profile.country = country  # fallback if lookup fails
+                profile.country = country
 
         profile.save()
         return user
+
 
 
 
