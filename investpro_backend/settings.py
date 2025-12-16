@@ -7,9 +7,6 @@ from corsheaders.defaults import default_headers, default_methods
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-if not os.path.exists(STATIC_ROOT):
-    os.makedirs(STATIC_ROOT, exist_ok=True)
-
 # ----------------------
 # Environment variables
 # ----------------------
@@ -208,6 +205,8 @@ STATICFILES_FINDERS = [
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 
+if not os.path.exists(STATIC_ROOT):
+    os.makedirs(STATIC_ROOT, exist_ok=True)
 
 
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
