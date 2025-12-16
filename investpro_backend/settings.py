@@ -6,11 +6,16 @@ from corsheaders.defaults import default_headers, default_methods
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+if not os.path.exists(STATIC_ROOT):
+    os.makedirs(STATIC_ROOT, exist_ok=True)
+
 # ----------------------
 # Environment variables
 # ----------------------
 env = environ.Env(DEBUG=(bool, False))
-DJANGO_ENV = os.environ.get("DJANGO_ENV", "development")
+DJANGO_ENV = "production" if not DEBUG else "development"
+
 env_file = BASE_DIR / f".env.{DJANGO_ENV}"
 
 if env_file.exists():
