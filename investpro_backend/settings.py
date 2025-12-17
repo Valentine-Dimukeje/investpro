@@ -111,8 +111,6 @@ CSRF_TRUSTED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-LOGIN_REDIRECT_URL = "/admin/"
-LOGOUT_REDIRECT_URL = "/admin/login/"
 
 
 
@@ -209,21 +207,24 @@ STATICFILES_FINDERS = [
 ]
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
-
 # ==========================
-# DJANGO ADMIN COOKIE FIX
+# DJANGO ADMIN LOGIN FIX
 # ==========================
 
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 
-SESSION_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
 
-SESSION_COOKIE_DOMAIN = ".octa-investment.com"
-CSRF_COOKIE_DOMAIN = ".octa-investment.com"
+SESSION_COOKIE_DOMAIN = None
+CSRF_COOKIE_DOMAIN = None
+
+LOGIN_REDIRECT_URL = "/admin/"
+LOGOUT_REDIRECT_URL = "/admin/login/"
+
 
 
 
