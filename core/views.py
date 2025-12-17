@@ -564,34 +564,44 @@ def _fmt(v):
     except Exception:
         return str(v)
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
-
-    print("AUTH HEADER:", request.headers.get("Authorization"))
-    user = request.user
-    tx = Transaction.objects.filter(user=user)
-
-    deposits = tx.filter(type="deposit", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-    withdrawals = tx.filter(type="withdraw", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-    investments = tx.filter(type="investment", status__in=["active", "completed"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-    earnings = tx.filter(type="profit", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-
-    recent = TransactionSerializer(tx.order_by("-created_at")[:10], many=True).data
-
-    # ensure profile values are included and formatted
-    main_wallet = getattr(user.profile, "main_wallet", Decimal("0.00"))
-    profit_wallet = getattr(user.profile, "profit_wallet", Decimal("0.00"))
-
     return Response({
-        "wallet": _fmt(main_wallet),
-        "profit_wallet": _fmt(profit_wallet),
-        "total_deposits": _fmt(deposits),
-        "total_withdrawals": _fmt(withdrawals),
-        "total_investments": _fmt(investments),
-        "total_earnings": _fmt(earnings),
-        "recent": recent,
+        "status": "ok",
+        "user": request.user.email
     })
+
+
+# @api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+# def dashboard_summary(request):
+
+#     print("AUTH HEADER:", request.headers.get("Authorization"))
+#     user = request.user
+#     tx = Transaction.objects.filter(user=user)
+
+#     deposits = tx.filter(type="deposit", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+#     withdrawals = tx.filter(type="withdraw", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+#     investments = tx.filter(type="investment", status__in=["active", "completed"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+#     earnings = tx.filter(type="profit", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+#     recent = TransactionSerializer(tx.order_by("-created_at")[:10], many=True).data
+
+#     # ensure profile values are included and formatted
+#     main_wallet = getattr(user.profile, "main_wallet", Decimal("0.00"))
+#     profit_wallet = getattr(user.profile, "profit_wallet", Decimal("0.00"))
+
+#     return Response({
+#         "wallet": _fmt(main_wallet),
+#         "profit_wallet": _fmt(profit_wallet),
+#         "total_deposits": _fmt(deposits),
+#         "total_withdrawals": _fmt(withdrawals),
+#         "total_investments": _fmt(investments),
+#         "total_earnings": _fmt(earnings),
+#         "recent": recent,
+#     })
 
 
 
