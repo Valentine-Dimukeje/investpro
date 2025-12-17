@@ -564,14 +564,15 @@ def _fmt(v):
     except Exception:
         return str(v)
 
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
     return Response({
-        "status": "ok",
-        "user": request.user.email
+        "ok": True,
+        "user_id": request.user.id,
+        "email": request.user.email,
     })
+
 
 
 # @api_view(["GET"])
