@@ -75,6 +75,8 @@ MIDDLEWARE = [
 
 
 # STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+# settings.py
+LOGIN_URL = "/maintenance/"
 
 
 # ----------------------
