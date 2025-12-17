@@ -30,12 +30,13 @@ SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-secret-key")
 DEBUG = DJANGO_ENV == "development"
 
 ALLOWED_HOSTS = [
+    "octa-investment.com",
     "api.octa-investment.com",
-    "web-production-d2bef.up.railway.app",
+    ".railway.app",
     "localhost",
     "127.0.0.1",
-    ".railway.app",  # ✅ ADD THIS
 ]
+
 
 
 
@@ -105,9 +106,10 @@ else:
 
 CSRF_TRUSTED_ORIGINS = [
     "https://octa-investment.com",
-    "https://www.octa-investment.com",
     "https://api.octa-investment.com",
 ]
+
+
 
 CORS_ALLOW_CREDENTIALS = True
 
