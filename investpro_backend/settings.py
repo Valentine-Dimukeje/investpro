@@ -62,8 +62,8 @@ INSTALLED_APPS = [
 # settings.py
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
