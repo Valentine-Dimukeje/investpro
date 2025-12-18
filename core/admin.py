@@ -17,14 +17,10 @@ class TransactionAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
 
     def save_model(self, request, obj, form, change):
-        if (
-            change
-            and obj.type == "deposit"
-            and obj.status == "completed"
-        ):
+        if change and obj.type == "deposit" and obj.status == "completed":
             approve_deposit(obj)
-
-        super().save_model(request, obj, form, change)
+        else:
+            super().save_model(request, obj, form, change)
 
 
 @admin.register(Referral)
