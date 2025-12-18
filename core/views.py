@@ -564,14 +564,60 @@ def _fmt(v):
     except Exception:
         return str(v)
 
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
-    return Response({
-        "ok": True,
-        "user_id": request.user.id,
-        "email": request.user.email,
-    })
+    user = request.user
+
+    # Hard auth guard (prevents random 500s)
+    if not user.is_authenticated:
+        return Response(
+            {"detail": "Authentication required"},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    try:
+        # Safe defaults
+        balance = 0
+        total_invested = 0
+        active_investments = 0
+
+        # ---- TRANSACTIONS ----
+        if hasattr(user, "transactions"):
+            balance = (
+                user.transactions
+                .filter(type="deposit", status="approved")
+                .aggregate(total=Sum("amount"))["total"]
+                or 0
+            )
+
+        # ---- INVESTMENTS ----
+        if hasattr(user, "investments"):
+            total_invested = (
+                user.investments
+                .aggregate(total=Sum("amount"))["total"]
+                or 0
+            )
+            active_investments = user.investments.filter(status="active").count()
+
+        return Response({
+            "balance": balance,
+            "total_invested": total_invested,
+            "active_investments": active_investments,
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        # Final safety net — NO MORE CRASHES
+        return Response(
+            {
+                "error": "dashboard_summary_failed",
+                "detail": str(e)
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 
 
 
