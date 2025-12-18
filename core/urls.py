@@ -5,6 +5,7 @@ from . import views
 from .views import dashboard_summary
 from .views import update_notifications
 from .views import PasswordResetRequestView, PasswordResetConfirmView
+from core.views import EmailTokenObtainPairView
 
 
 urlpatterns = [
@@ -13,7 +14,7 @@ urlpatterns = [
     path("auth/me/", views.me_view),
     path("profile/", views.get_profile, name="get_profile"),
 
-
+path("api/auth/login/", EmailTokenObtainPairView.as_view(), name="login"),
     path("cors-test/", views.cors_test, name="cors_test"),
     path("raw-debug/", views.raw_debug_view, name="raw_debug"),
     # path("auth/register/", views.register_view, name="auth-register"),

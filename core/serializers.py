@@ -3,6 +3,8 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 from .models import Profile, Transaction, Device, Investment
 from .utils import lookup_country_code, country_to_flag
 from decimal import Decimal, InvalidOperation
@@ -56,6 +58,26 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_devices(self, obj):
         # If you’re not tracking devices yet, return []
         return []
+
+class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = "email"
+
+    def validate(self, attrs):
+        email = attrs.get("email")
+        password = attrs.get("password")
+
+        user = authenticate(username=email, password=password)
+
+        if not user:
+            raise serializers.ValidationError("Invalid email or password")
+
+        data = super().validate({
+            "username": user.username,
+            "password": password
+        })
+
+        return data
+
 
 
 class ReferralSerializer(serializers.ModelSerializer):

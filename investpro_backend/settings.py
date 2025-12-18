@@ -62,11 +62,11 @@ INSTALLED_APPS = [
 # ----------------------
 # settings.py
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
 
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
 
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -74,7 +74,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
-
 
 
 
@@ -87,46 +86,43 @@ MIDDLEWARE = [
 # CORS / CSRF
 # ----------------------
 from corsheaders.defaults import default_headers, default_methods
+# ----------------------
+# CORS / CSRF (FINAL)
+# ----------------------
 
-if DJANGO_ENV == "development":
-    # Local React dev
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
-    CSRF_TRUSTED_ORIGINS = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
-    CORS_ALLOW_ALL_ORIGINS = True   # ✅ useful for dev
-    CSRF_COOKIE_SECURE = False
-    SESSION_COOKIE_SECURE = False
-
-else:
-    CORS_ALLOWED_ORIGINS = [
-        "https://octa-investment.com",
-        "https://www.octa-investment.com",
-        "https://api.octa-investment.com",
-    ]
-
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://octa-investment.com",
-    "https://api.octa-investment.com",
-]
-
-SESSION_COOKIE_DOMAIN = "api.octa-investment.com"
-CSRF_COOKIE_DOMAIN = "api.octa-investment.com"
-
-CORS_ALLOW_CREDENTIALS = False
-
-
-
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "authorization",
     "content-type",
 ]
+
+CORS_ALLOW_METHODS = list(default_methods)
+
+# ✅ ALWAYS allow local dev
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# ✅ ALSO allow production
+CORS_ALLOWED_ORIGINS += [
+    "https://octa-investment.com",
+    "https://www.octa-investment.com",
+    "https://api.octa-investment.com",
+]
+
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+
+
+
+# CORS_ALLOW_HEADERS = list(default_headers) + [
+#     "authorization",
+#     "content-type",
+# ]
 CORS_ALLOW_METHODS = list(default_methods)
 # 🔥 TURN THIS OFF ON RAILWAY
 SECURE_SSL_REDIRECT = False
@@ -146,8 +142,9 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-    ),
+    "rest_framework.permissions.AllowAny",
+),
+
     
 }
 

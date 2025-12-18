@@ -198,47 +198,33 @@ def register_view(request):
         }
     }, status=status.HTTP_201_CREATED)
 
-
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def login_view(request):
-    print("==== LOGIN DEBUG START ====")
-    print("RAW BODY:", request.body)
-    print("PARSED request.data:", request.data)
-    print("HEADERS:", request.headers)
-    print("==== LOGIN DEBUG END ====")
-
-    email_or_username = request.data.get("username") or request.data.get("email")
+    email = request.data.get("email")
     password = request.data.get("password")
 
-    if not email_or_username or not password:
-        return Response({"detail": "Email/username and password required."}, status=400)
-
-    # Accept login using either email OR username
-    try:
-        user = User.objects.get(email=email_or_username)
-        username = user.username
-    except User.DoesNotExist:
-        username = email_or_username
-
-    user = authenticate(username=username, password=password)
+    user = authenticate(username=email, password=password)
 
     if not user:
-        return Response({"detail": "Invalid credentials"}, status=401)
+        return Response(
+            {"detail": "Invalid credentials"},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
 
-    # Generate JWT tokens
     refresh = RefreshToken.for_user(user)
 
     return Response({
         "access": str(refresh.access_token),
         "refresh": str(refresh),
-        "user": {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email
-        }
     })
 
+from .serializers import EmailTokenObtainPairSerializer
+
+
+class EmailTokenObtainPairView(TokenObtainPairView):
+    serializer_class = EmailTokenObtainPairSerializer
 
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
