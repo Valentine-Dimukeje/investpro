@@ -4,6 +4,11 @@ from django.dispatch import receiver
 from .models import Transaction, Profile
 from django.contrib.auth import get_user_model
 from django.contrib.auth.signals import user_logged_in
+from django.conf import settings
+from django.core.mail import send_mail
+import requests
+
+
 
 
 User = get_user_model()
@@ -45,21 +50,35 @@ def send_welcome_notification(sender, instance, created, **kwargs):
         if profile and profile.sms_notifications and profile.phone:
             send_sms(profile.phone, "Welcome to our platform!")
 
-
-# --- Send Login Alert ---
 @receiver(user_logged_in)
 def send_login_alert(sender, request, user, **kwargs):
-    profile = getattr(user, "profile", None)
-    if profile and profile.email_notifications:
-        send_mail(
-            "Login Alert",
-            f"Hi {user.first_name or user.username}, you just logged in from IP {get_client_ip(request)}",
-            settings.DEFAULT_FROM_EMAIL,
-            [user.email],
-            fail_silently=True
-        )
-    if profile and profile.sms_notifications and profile.phone:
-        send_sms(profile.phone, "Login alert: You just logged in to your account.")
+    """
+    Login must NEVER fail.
+    All external services are wrapped safely.
+    """
+    try:
+        profile = getattr(user, "profile", None)
+        if not profile:
+            return
+
+        if profile.email_notifications:
+            send_mail(
+                "Login Alert",
+                f"Hi {user.username}, you just logged in.",
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                fail_silently=True,
+            )
+
+        if profile.sms_notifications and profile.phone:
+            try:
+                send_sms(profile.phone, "Login alert: New login detected.")
+            except Exception:
+                pass
+
+    except Exception as e:
+        # NEVER break login
+        print("⚠️ Login signal error:", e)
 
 # --- Helper to get IP ---
 def get_client_ip(request):
