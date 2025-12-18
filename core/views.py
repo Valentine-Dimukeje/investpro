@@ -565,59 +565,26 @@ def _fmt(v):
         return str(v)
 
 
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
     user = request.user
+    tx = Transaction.objects.filter(user=user)
 
-    # Hard auth guard (prevents random 500s)
-    if not user.is_authenticated:
-        return Response(
-            {"detail": "Authentication required"},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
+    deposits = tx.filter(type="deposit", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    withdrawals = tx.filter(type="withdraw", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    investments = tx.filter(type="investment", status__in=["active", "completed"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    earnings = tx.filter(type="profit", status__in=["completed", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
-    try:
-        # Safe defaults
-        balance = 0
-        total_invested = 0
-        active_investments = 0
+    recent = TransactionSerializer(tx.order_by("-created_at")[:10], many=True).data
 
-        # ---- TRANSACTIONS ----
-        if hasattr(user, "transactions"):
-            balance = (
-                user.transactions
-                .filter(type="deposit", status="approved")
-                .aggregate(total=Sum("amount"))["total"]
-                or 0
-            )
-
-        # ---- INVESTMENTS ----
-        if hasattr(user, "investments"):
-            total_invested = (
-                user.investments
-                .aggregate(total=Sum("amount"))["total"]
-                or 0
-            )
-            active_investments = user.investments.filter(status="active").count()
-
-        return Response({
-            "balance": balance,
-            "total_invested": total_invested,
-            "active_investments": active_investments,
-        }, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        # Final safety net — NO MORE CRASHES
-        return Response(
-            {
-                "error": "dashboard_summary_failed",
-                "detail": str(e)
-            },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-
+    return Response({
+        "total_deposits": str(deposits),
+        "total_withdrawals": str(withdrawals),
+        "total_investments": str(investments),
+        "total_earnings": str(earnings),
+        "recent": recent,
+    })
 
 
 

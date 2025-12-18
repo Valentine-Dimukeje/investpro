@@ -7,8 +7,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("core.urls")),
 
-    path("create-admin-once/", create_admin_once),
-    path("reset-admin-password/", reset_admin_password),
+    # path("create-admin-once/", create_admin_once),
+    # path("reset-admin-password/", reset_admin_password),
 
     path(
         "robots.txt",
