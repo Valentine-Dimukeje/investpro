@@ -115,7 +115,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://api.octa-investment.com",
 ]
 
-
+SESSION_COOKIE_DOMAIN = "api.octa-investment.com"
+CSRF_COOKIE_DOMAIN = "api.octa-investment.com"
 
 CORS_ALLOW_CREDENTIALS = False
 
