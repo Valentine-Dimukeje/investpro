@@ -110,6 +110,7 @@ CORS_ALLOWED_ORIGINS += [
     "https://octa-investment.com",
     "https://www.octa-investment.com",
     "https://api.octa-investment.com",
+    "https://octa-invest.vercel.app",
 ]
 
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
